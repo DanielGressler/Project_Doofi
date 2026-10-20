@@ -13,7 +13,7 @@ try {
 const products = await getProducts(env.DB, store.id);
 ---
 
-<Layout title="Finalizar pedido de teste">
+<Layout title="Finalizar pedido de teste" appearance={store}>
   <div
     id="checkout-app"
     class="wrap page-wrap"
@@ -90,13 +90,17 @@ const products = await getProducts(env.DB, store.id);
                   <small>{store.pickup_address}</small>
                 </span>
               </label>
-              <label class="choice">
-                <input type="radio" name="fulfillment" value="FIXED" />
-                <span>
-                  <strong>Entrega da loja · {money(store.delivery_fee)}</strong>
-                  <small>Feita pelo vendedor, nos bairros atendidos.</small>
-                </span>
-              </label>
+              {store.has_own_delivery === 1 && (
+                <label class="choice">
+                  <input type="radio" name="fulfillment" value="FIXED" />
+                  <span>
+                    <strong>
+                      Entrega da loja · {money(store.delivery_fee)}
+                    </strong>
+                    <small>Feita pelo vendedor, nos bairros atendidos.</small>
+                  </span>
+                </label>
+              )}
               <label class="choice">
                 <input type="radio" name="fulfillment" value="QUOTE" />
                 <span>

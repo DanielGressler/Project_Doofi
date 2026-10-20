@@ -2,6 +2,7 @@
 import PanelLayout from "../../layouts/PanelLayout.astro";
 import { env } from "cloudflare:workers";
 import type { Store } from "../../lib/types";
+import { palettes, fonts } from "../../lib/appearance";
 const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
   .bind(Astro.locals.session!.store_id)
   .first<Store>())!;
@@ -17,7 +18,12 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
       <p>Organize as informações e a entrega da sua loja fictícia.</p>
     </div>
   </div>
-  <form id="store-form" data-version={store.version} class="card">
+  <form
+    id="store-form"
+    data-version={store.version}
+    data-banner-id={store.banner_id ?? ""}
+    class="card"
+  >
     <div class="form-grid">
       <label class="field">
         <span>Nome da loja</span>
@@ -72,7 +78,19 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
           required
         />
       </label>
-      <label class="field">
+      <label class="checkbox full">
+        <input
+          type="checkbox"
+          name="has_own_delivery"
+          checked={!!store.has_own_delivery}
+        />
+        <span>Possui entregador próprio</span>
+      </label>
+      <label
+        class="field"
+        id="fixed-delivery-field"
+        hidden={!store.has_own_delivery}
+      >
         <span>Taxa fixa de entrega (R$)</span>
         <input
           type="number"
@@ -81,7 +99,7 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
           min="0"
           max="1000"
           step="0.01"
-          required
+          required={!!store.has_own_delivery}
         />
       </label>
       <label class="field">
@@ -98,6 +116,60 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
         </small>
       </label>
     </div>
+    <fieldset class="appearance-editor">
+      <legend>Personalização da loja</legend>
+      <p>Escolha um visual pronto. Não precisa saber design ou programação.</p>
+      <div class="form-grid">
+        <label class="field">
+          <span>Paleta de cores</span>
+          <select name="palette" aria-label="Paleta de cores">
+            {Object.entries(palettes).map(([key, value]) => (
+              <option value={key} selected={store.palette === key}>
+                {value.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label class="field">
+          <span>Estilo das fontes</span>
+          <select name="font" aria-label="Estilo das fontes">
+            {Object.entries(fonts).map(([key, value]) => (
+              <option value={key} selected={store.font === key}>
+                {value.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div class="full appearance-preview" id="appearance-preview">
+          <h2>Sua loja, do seu jeito</h2>
+          <p>Veja como ficam a fonte e as cores.</p>
+          <span class="preview-button">Fazer um pedido</span>
+        </div>
+        <label class="field full">
+          <span>Banner da loja (opcional)</span>
+          <input type="file" name="banner" accept="image/jpeg,image/png" />
+          <small>
+            JPG ou PNG de até 2 MB e 4 megapixels. Ajustamos para 1600 × 600
+            pixels com recorte central. Prefira uma imagem horizontal.
+          </small>
+        </label>
+        {store.banner_id && (
+          <div class="full">
+            <img
+              class="banner-preview"
+              src={`/media/${store.banner_id}`}
+              alt="Banner atual da loja"
+              width="1600"
+              height="600"
+            />
+            <label class="checkbox">
+              <input type="checkbox" name="remove_banner" />
+              <span>Remover banner e voltar à ilustração</span>
+            </label>
+          </div>
+        )}
+      </div>
+    </fieldset>
     <label class="checkbox">
       <input type="checkbox" name="is_open" checked={!!store.is_open} />
       <span>Loja aberta para novos pedidos de teste</span>
@@ -110,16 +182,66 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
 </PanelLayout>
 <script>
   import { $, api, busy, feedback } from "../../scripts/browser";
+  import { upload } from "../../scripts/uploads";
+  import { palettes, fonts } from "../../lib/appearance";
   const form = $<HTMLFormElement>("#store-form");
+  const own = $<HTMLInputElement>('[name="has_own_delivery"]', form),
+    fee = $<HTMLInputElement>('[name="delivery_fee"]', form);
+  function deliveryChanged() {
+    $("#fixed-delivery-field").hidden = !own.checked;
+    fee.required = own.checked;
+    fee.disabled = !own.checked;
+  }
+  own.addEventListener("change", deliveryChanged);
+  deliveryChanged();
+  function preview() {
+    const palette =
+      palettes[
+        $<HTMLSelectElement>('[name="palette"]', form)
+          .value as keyof typeof palettes
+      ];
+    const font =
+      fonts[
+        $<HTMLSelectElement>('[name="font"]', form).value as keyof typeof fonts
+      ];
+    const sample = $("#appearance-preview");
+    sample.style.setProperty("--accent", palette.accent);
+    sample.style.setProperty("--serif", font.heading);
+    sample.style.fontFamily = font.body;
+    sample.style.backgroundColor = palette.background;
+  }
+  form.addEventListener("change", preview);
+  preview();
   form.onsubmit = (event) => {
     event.preventDefault();
     void busy($<HTMLButtonElement>('button[type="submit"]', form), async () => {
       const fields = new FormData(form);
+      let bannerId: string | null = form.dataset.bannerId || null;
+      if (fields.get("remove_banner") === "on") bannerId = null;
+      const file = fields.get("banner");
+      if (file instanceof File && file.size) {
+        const signature = `${file.name}:${file.size}:${file.lastModified}`;
+        if (form.dataset.uploadSignature !== signature) {
+          form.dataset.uploadId = await upload(
+            file,
+            "banner",
+            $("#panel-app").dataset.csrf!,
+          );
+          form.dataset.uploadSignature = signature;
+        }
+        bannerId = form.dataset.uploadId!;
+      }
+      fields.delete("banner");
+      fields.delete("remove_banner");
       await api(
         "painel/loja",
         {
           ...Object.fromEntries(fields),
-          delivery_fee: Math.round(Number(fields.get("delivery_fee")) * 100),
+          delivery_fee: own.checked
+            ? Math.round(Number(fields.get("delivery_fee")) * 100)
+            : Math.round(Number(fee.value) * 100),
+          has_own_delivery: own.checked,
+          banner_id: bannerId,
           is_open: fields.get("is_open") === "on",
           version: Number(form.dataset.version),
         },
@@ -127,6 +249,7 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
         $("#panel-app").dataset.csrf,
       );
       form.dataset.version = String(Number(form.dataset.version) + 1);
+      form.dataset.bannerId = bannerId ?? "";
       feedback("Configurações salvas. A loja já mostra as novas informações.");
     });
   };

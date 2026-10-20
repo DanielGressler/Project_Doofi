@@ -12,6 +12,10 @@ export interface Store {
   neighborhoods: string;
   theme: string;
   version: number;
+  has_own_delivery: number;
+  palette: "terracotta" | "forest" | "ocean" | "plum";
+  font: "editorial" | "simple" | "classic";
+  banner_id: string | null;
 }
 export interface Product {
   id: string;
@@ -23,6 +27,10 @@ export interface Product {
   available: number;
   image: string;
   version: number;
+  image_id: string | null;
+  is_combo: number;
+  orderable: number;
+  components: { id: string; title: string; available: number }[];
 }
 export interface Session {
   user_id: string;

@@ -19,6 +19,7 @@ import {
   transition,
 } from "./orders";
 import type { Store } from "./types";
+import { uploadImage } from "./media";
 
 const json = (
   value: unknown,
@@ -113,6 +114,18 @@ export async function handleApi(
       const session = await requireSession(db, request, mutates);
       if (mutates)
         await rateLimit(db, request, `panel:${session.store_id}`, 100);
+      if (path === "painel/imagens" && method === "POST") {
+        await rateLimit(db, request, `upload:${session.store_id}`, 10);
+        return json(
+          await uploadImage(
+            db,
+            session,
+            request,
+            new URL(request.url).searchParams.get("kind") ?? "",
+          ),
+          201,
+        );
+      }
       if (path === "painel/loja") {
         if (method === "GET")
           return json(

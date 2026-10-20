@@ -62,7 +62,7 @@ wrangler(
   true,
 );
 const query =
-  "SELECT (SELECT COUNT(*) FROM orders) AS orders, (SELECT COUNT(*) FROM order_items) AS items, (SELECT COUNT(*) FROM audit_events) AS audit, (SELECT COUNT(*) FROM products) AS products, (SELECT COUNT(*) FROM orders o WHERE NOT EXISTS (SELECT 1 FROM audit_events a WHERE a.entity_id=o.id AND a.action='ORDER_CREATED')) AS orphan_orders, (SELECT COUNT(*) FROM orders WHERE total IS NOT NULL AND total<>subtotal+delivery_fee) AS bad_totals";
+  "SELECT (SELECT COUNT(*) FROM orders) AS orders, (SELECT COUNT(*) FROM order_items) AS items, (SELECT COUNT(*) FROM audit_events) AS audit, (SELECT COUNT(*) FROM products) AS products, (SELECT COUNT(*) FROM combo_items) AS combo_links, (SELECT COUNT(*) FROM media_assets) AS media_assets, (SELECT COALESCE(SUM(LENGTH(data)),0) FROM media_assets) AS media_bytes, (SELECT COUNT(*) FROM orders o WHERE NOT EXISTS (SELECT 1 FROM audit_events a WHERE a.entity_id=o.id AND a.action='ORDER_CREATED')) AS orphan_orders, (SELECT COUNT(*) FROM orders WHERE total IS NOT NULL AND total<>subtotal+delivery_fee) AS bad_totals";
 function counts(database, args = []) {
   const output = wrangler(
     [

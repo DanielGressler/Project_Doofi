@@ -10,13 +10,12 @@ import {
   same,
   textField,
 } from "./core";
-import { conditionalAudit, getStore } from "./catalog";
+import { conditionalAudit, getStore, getProducts } from "./catalog";
 import type {
   Order,
   OrderItem,
   OrderStatus,
   Payment,
-  Product,
   Quote,
   Session,
 } from "./types";
@@ -143,6 +142,11 @@ export async function createOrder(
   if (existing) return existing;
   if (!store.is_open)
     throw new AppError(422, "A loja está fechada para novos pedidos.");
+  if (normalized.fulfillment === "FIXED" && !store.has_own_delivery)
+    throw new AppError(
+      422,
+      "Esta loja não oferece entrega com taxa fixa. Escolha retirada ou frete a combinar.",
+    );
   const issued = await db
     .prepare(
       "SELECT key_hash FROM checkout_intents WHERE key_hash=? AND store_id=? AND expires_at>?",
@@ -166,12 +170,7 @@ export async function createOrder(
       422,
       "Este bairro não é atendido pela loja. Escolha retirada ou um bairro disponível.",
     );
-  const products = (
-    await db
-      .prepare("SELECT * FROM products WHERE store_id=? AND available=1")
-      .bind(store.id)
-      .all<Product>()
-  ).results;
+  const products = (await getProducts(db, store.id)).filter((p) => p.orderable);
   const items = normalized.items.map((i) => {
     const p = products.find((p) => p.id === i.productId);
     if (!p)
@@ -179,7 +178,13 @@ export async function createOrder(
         422,
         "Um produto está indisponível ou pertence a outra loja. Revise o carrinho.",
       );
-    return { ...i, price: p.price, title: p.title };
+    return {
+      ...i,
+      price: p.price,
+      title: p.is_combo
+        ? `${p.title} (${p.components.map((c) => c.title).join(" + ")})`
+        : p.title,
+    };
   });
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   if (subtotal > 1000000)

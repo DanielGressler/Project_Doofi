@@ -1,15 +1,17 @@
-# Doofi · Protótipo P1
+# Doofi · Protótipo P1.1
 
 Loja digital multiempresa com catálogo, carrinho, checkout convidado, atendimento pelo lojista e acompanhamento por link. Duas lojas fictícias demonstram retirada, entrega própria com taxa fixa e cotação com aceite explícito.
 
 **Somente dados sintéticos. Sem venda, entrega ou Pix reais.** A aplicação bloqueia acesso por host público e qualquer `APP_MODE` diferente de `local-demo`. Não foi feito deploy em Cloudflare nem publicação em produção.
+
+Veja o [guia de atualização, Windows e novas funções](docs/ATUALIZACAO_CATALOGO.md). Inclui categorias, combos, indisponibilidade, fotos, banner, fontes, paletas e entregador próprio.
 
 ## Executar
 
 Requisitos: Node 24 (ou >=22.22), npm e Linux/macOS/Windows compatível com workerd. As versões exatas estão em `package-lock.json`.
 
 ```sh
-cd /workspace/Project_Doofi
+cd caminho/para/Project_Doofi-main
 npm ci
 npm run db:migrate
 npm run db:seed

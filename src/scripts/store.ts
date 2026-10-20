@@ -34,7 +34,7 @@ function render() {
       "aria-label",
       `Adicionar uma unidade de ${product.title}`,
     );
-    plus.disabled = quantity >= 10;
+    plus.disabled = quantity >= 10 || !product.orderable;
     plus.onclick = () => change(id, 1);
     control.append(minus, el("span", String(quantity)), plus);
     row.append(line, control);
@@ -48,6 +48,11 @@ function render() {
   $("#cart-subtotal").textContent = money(subtotal);
 }
 function change(id: string, delta: number) {
+  if (delta > 0 && !products.find((p) => p.id === id)?.orderable) {
+    $("#cart-feedback").textContent =
+      "Este produto ou um item do combo está indisponível.";
+    return;
+  }
   const updated = { ...cart };
   const quantity = (updated[id] ?? 0) + delta;
   if (quantity > 10) {

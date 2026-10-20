@@ -1,5 +1,6 @@
 ---
 import PanelLayout from "../../layouts/PanelLayout.astro";
+import ProductEditor from "../../components/ProductEditor.astro";
 import { env } from "cloudflare:workers";
 import { getProducts } from "../../lib/catalog";
 const products = await getProducts(env.DB, Astro.locals.session!.store_id);
@@ -12,190 +13,43 @@ const products = await getProducts(env.DB, Astro.locals.session!.store_id);
       <h1>
         Seu cardápio<span class="accent">.</span>
       </h1>
-      <p>Preços e disponibilidade sob o seu cuidado.</p>
+      <p>Produtos e combos organizados por categoria.</p>
     </div>
-    <a class="button button-primary" href="#new-product">
-      + Novo produto
-    </a>
+    <div class="editor-actions">
+      <a class="button button-primary" href="#new-product">
+        + Novo produto
+      </a>
+      <a class="button button-quiet" href="#new-combo">
+        + Novo combo
+      </a>
+    </div>
   </div>
   <p class="notice">
-    As alterações valem para novos pedidos. Os preços dos pedidos já enviados
-    ficam preservados.
+    As alterações valem para novos pedidos. Deixe a caixa de indisponibilidade
+    desmarcada para vender. Nos combos, a indisponibilidade de um dos itens
+    bloqueia o anúncio automaticamente.
   </p>
-  <div class="product-editor">
-    {products.map((p) => (
-      <form class="card product-form" data-id={p.id} data-version={p.version}>
-        <div class="product-edit-heading">
-          <h2>{p.title}</h2>
-          <span class="badge">
-            {p.available ? "Disponível" : "Indisponível"}
-          </span>
-        </div>
-        <div class="form-grid">
-          <label class="field">
-            <span>Nome do produto</span>
-            <input
-              name="title"
-              value={p.title}
-              minlength="2"
-              maxlength="80"
-              required
-            />
-          </label>
-          <label class="field">
-            <span>Categoria</span>
-            <input
-              name="category"
-              value={p.category}
-              minlength="2"
-              maxlength="60"
-              required
-            />
-          </label>
-          <label class="field full">
-            <span>Descrição</span>
-            <textarea
-              name="description"
-              minlength="2"
-              maxlength="300"
-              required
-            >{p.description}</textarea>
-          </label>
-          <label class="field">
-            <span>Preço (R$)</span>
-            <input
-              type="number"
-              name="price"
-              value={(p.price / 100).toFixed(2)}
-              min="0.01"
-              max="1000"
-              step="0.01"
-              required
-            />
-          </label>
-          <label class="field">
-            <span>Ilustração sintética</span>
-            <select name="image">
-              {["bread", "croissant", "coffee", "bowl", "salad", "juice"].map(
-                (key, i) => (
-                  <option value={key} selected={p.image === key}>
-                    {["Pão", "Croissant", "Café", "Bowl", "Salada", "Suco"][i]}
-                  </option>
-                ),
-              )}
-            </select>
-          </label>
-        </div>
-        <label class="checkbox">
-          <input type="checkbox" name="available" checked={!!p.available} />
-          <span>Produto disponível para novos pedidos</span>
-        </label>
-        <button type="submit" class="button button-quiet">
-          Salvar produto
-        </button>
-        <p class="feedback" role="status" aria-live="polite"></p>
-      </form>
+  <datalist id="category-examples">
+    {[
+      "Doces",
+      "Bebidas",
+      "Pratos principais",
+      "Petiscos",
+      "Lanches",
+      "Combos",
+    ].map((category) => (
+      <option value={category} />
     ))}
-    <form id="new-product" class="card product-form">
-      <h2>Um novo sabor no cardápio</h2>
-      <div class="form-grid">
-        <label class="field">
-          <span>Nome do produto</span>
-          <input
-            name="title"
-            minlength="2"
-            maxlength="80"
-            required
-            placeholder="Ex.: Bolo de teste"
-          />
-        </label>
-        <label class="field">
-          <span>Categoria</span>
-          <input
-            name="category"
-            minlength="2"
-            maxlength="60"
-            required
-            value="Novidades"
-          />
-        </label>
-        <label class="field full">
-          <span>Descrição</span>
-          <textarea
-            name="description"
-            minlength="2"
-            maxlength="300"
-            required
-            placeholder="Descreva seu produto fictício."
-          ></textarea>
-        </label>
-        <label class="field">
-          <span>Preço (R$)</span>
-          <input
-            type="number"
-            name="price"
-            min="0.01"
-            max="1000"
-            step="0.01"
-            required
-          />
-        </label>
-        <label class="field">
-          <span>Ilustração sintética</span>
-          <select name="image">
-            <option value="bread">Pão</option>
-            <option value="croissant">Croissant</option>
-            <option value="coffee">Café</option>
-            <option value="bowl">Bowl</option>
-            <option value="salad">Salada</option>
-            <option value="juice">Suco</option>
-          </select>
-        </label>
-      </div>
-      <label class="checkbox">
-        <input type="checkbox" name="available" checked />
-        <span>Disponível para novos pedidos</span>
-      </label>
-      <button type="submit" class="button button-primary">
-        Criar produto fictício
-      </button>
-      <p class="feedback" role="status" aria-live="polite"></p>
-    </form>
+  </datalist>
+  <div class="product-editor">
+    {products.map((product) => (
+      <ProductEditor product={product} products={products} />
+    ))}
+    <ProductEditor products={products} />
+    <ProductEditor products={products} combo />
   </div>
   <p id="feedback" class="feedback" role="alert"></p>
 </PanelLayout>
 <script>
-  import { $, api } from "../../scripts/browser";
-  document.querySelectorAll<HTMLFormElement>(".product-form").forEach(
-    (form) =>
-      (form.onsubmit = async (event) => {
-        event.preventDefault();
-        const button = $<HTMLButtonElement>('button[type="submit"]', form);
-        const output = $(".feedback", form);
-        button.disabled = true;
-        output.textContent = "Salvando...";
-        try {
-          const fields = new FormData(form);
-          const id = form.dataset.id;
-          await api(
-            `painel/produtos${id ? "/" + id : ""}`,
-            {
-              ...Object.fromEntries(fields),
-              price: Math.round(Number(fields.get("price")) * 100),
-              available: fields.get("available") === "on",
-              ...(id ? { version: Number(form.dataset.version) } : {}),
-            },
-            id ? "PATCH" : "POST",
-            $("#panel-app").dataset.csrf,
-          );
-          output.textContent = "Produto salvo. Atualizando catálogo...";
-          location.reload();
-        } catch (e) {
-          output.textContent = (e as Error).message;
-          output.classList.add("error");
-        } finally {
-          button.disabled = false;
-        }
-      }),
-  );
+  import "../../scripts/catalog-editor";
 </script>

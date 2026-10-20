@@ -1,0 +1,166 @@
+---
+import type { Product } from "../lib/types";
+interface Props {
+  product?: Product;
+  products: Product[];
+  combo?: boolean;
+}
+const { product: p, products, combo = !!p?.is_combo } = Astro.props;
+const ids = p?.components.map((c) => c.id) ?? [];
+const illustrations = [
+  ["bread", "Pão"],
+  ["croissant", "Croissant"],
+  ["coffee", "Café"],
+  ["bowl", "Bowl"],
+  ["salad", "Salada"],
+  ["juice", "Suco"],
+];
+---
+
+<form
+  id={!p ? (combo ? "new-combo" : "new-product") : undefined}
+  class="card product-form"
+  data-id={p?.id}
+  data-version={p?.version}
+  data-is-combo={String(combo)}
+>
+  <div class="product-edit-heading">
+    <h2>{p?.title ?? (combo ? "Novo combo" : "Novo produto")}</h2>
+    {p && (
+      <span class="badge">{p.orderable ? "Disponível" : "Indisponível"}</span>
+    )}
+  </div>
+  <div class="form-grid">
+    <label class="field">
+      <span>{combo ? "Nome do combo" : "Nome do produto"}</span>
+      <input
+        name="title"
+        value={p?.title}
+        minlength="2"
+        maxlength="80"
+        required
+        placeholder={
+          combo ? "Ex.: Lanche com bebida" : "Ex.: Bolo de chocolate"
+        }
+      />
+    </label>
+    <label class="field">
+      <span>Categoria</span>
+      <input
+        name="category"
+        value={p?.category}
+        list="category-examples"
+        minlength="2"
+        maxlength="60"
+        required
+        placeholder="Ex.: Doces, Bebidas ou Lanches"
+      />
+      <small>
+        Escolha uma sugestão ou escreva sua categoria. Ela vira um filtro no
+        cardápio.
+      </small>
+    </label>
+    <label class="field full">
+      <span>Descrição</span>
+      <textarea
+        name="description"
+        minlength="2"
+        maxlength="300"
+        required
+        placeholder="Conte o que vem no anúncio."
+      >{p?.description}</textarea>
+    </label>
+    {combo && (
+      <>
+        {[0, 1].map((index) => (
+          <label class="field">
+            <span>Produto {index + 1} do combo</span>
+            <select name={`component${index + 1}`} required>
+              <option value="">Selecione um produto</option>
+              {products
+                .filter((item) => !item.is_combo)
+                .map((item) => (
+                  <option value={item.id} selected={ids[index] === item.id}>
+                    {item.title}
+                    {!item.available ? " · indisponível" : ""}
+                  </option>
+                ))}
+            </select>
+          </label>
+        ))}
+        <p class="small muted full">
+          O combo reúne uma unidade de cada produto em um único anúncio. Defina
+          o preço total abaixo. Se um item ficar indisponível, o combo também
+          fica.
+        </p>
+      </>
+    )}
+    <label class="field">
+      <span>{combo ? "Preço do combo (R$)" : "Preço (R$)"}</span>
+      <input
+        type="number"
+        name="price"
+        value={p ? (p.price / 100).toFixed(2) : undefined}
+        min="0.01"
+        max="1000"
+        step="0.01"
+        required
+      />
+    </label>
+    <label class="field">
+      <span>Imagem ilustrativa</span>
+      <select name="image">
+        {illustrations.map(([key, label]) => (
+          <option value={key} selected={p?.image === key}>
+            {label}
+          </option>
+        ))}
+      </select>
+      <small>Usada quando o anúncio não tem foto própria.</small>
+    </label>
+    <label class="field full">
+      <span>Foto própria (opcional)</span>
+      <input type="file" name="photo" accept="image/jpeg,image/png" />
+      <small>
+        JPG ou PNG, até 2 MB e 4 megapixels. Ajustamos o enquadramento
+        automaticamente. A foto substitui a ilustração.
+      </small>
+    </label>
+    {p?.image_id && (
+      <div class="full">
+        <img
+          class="editor-photo"
+          src={`/media/${p.image_id}`}
+          alt={`Foto atual de ${p.title}`}
+          width="240"
+          height="180"
+        />
+        <label class="checkbox">
+          <input type="checkbox" name="remove_photo" />
+          <span>Remover foto e voltar à ilustração</span>
+        </label>
+      </div>
+    )}
+  </div>
+  <label class="checkbox">
+    <input
+      type="checkbox"
+      name="unavailable"
+      checked={p ? !p.available : false}
+    />
+    <span>{combo ? "Combo indisponível" : "Produto indisponível"}</span>
+  </label>
+  <button
+    type="submit"
+    class:list={["button", p ? "button-quiet" : "button-primary"]}
+  >
+    {p
+      ? combo
+        ? "Salvar combo"
+        : "Salvar produto"
+      : combo
+        ? "Criar combo"
+        : "Criar produto fictício"}
+  </button>
+  <p class="feedback" role="status" aria-live="polite"></p>
+</form>
