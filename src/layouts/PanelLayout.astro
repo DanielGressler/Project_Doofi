@@ -1,0 +1,68 @@
+---
+import Layout from "./Layout.astro";
+import Icon from "../components/Icon.astro";
+import { env } from "cloudflare:workers";
+import type { Store } from "../lib/types";
+interface Props {
+  title: string;
+  active: string;
+}
+const { title, active } = Astro.props;
+const session = Astro.locals.session!;
+const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
+  .bind(session.store_id)
+  .first<Store>())!;
+---
+
+<Layout title={title} panel>
+  <div class="wrap panel-layout" id="panel-app" data-csrf={session.csrf_token}>
+    <aside class="panel-nav" aria-label="Menu do lojista">
+      <div class="panel-store">
+        <strong>{store.title}</strong>
+        <span>LOJISTA · AMBIENTE FICTÍCIO</span>
+      </div>
+      <a
+        class:list={[{ active: active === "orders" }]}
+        href="/painel/pedidos"
+        aria-current={active === "orders" ? "page" : undefined}
+      >
+        <Icon name="bag" />
+        Pedidos
+      </a>
+      <a
+        class:list={[{ active: active === "catalog" }]}
+        href="/painel/catalogo"
+        aria-current={active === "catalog" ? "page" : undefined}
+      >
+        <Icon name="grid" />
+        Catálogo
+      </a>
+      <a
+        class:list={[{ active: active === "store" }]}
+        href="/painel/loja"
+        aria-current={active === "store" ? "page" : undefined}
+      >
+        <Icon name="store" />
+        Minha loja
+      </a>
+      <a class="public-store" href={`/loja/${store.slug}`}>
+        <Icon name="arrow" size={16} />
+        Ver loja pública
+      </a>
+    </aside>
+    <div class="panel-content">
+      <slot />
+    </div>
+  </div>
+</Layout>
+<script>
+  import { $, api, feedback } from "../scripts/browser";
+  $("#logout")?.addEventListener("click", async () => {
+    try {
+      await api("logout", {}, "POST", $("#panel-app").dataset.csrf);
+      location.assign("/painel/entrar");
+    } catch (error) {
+      feedback((error as Error).message, true);
+    }
+  });
+</script>

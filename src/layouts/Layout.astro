@@ -1,0 +1,96 @@
+---
+import "../styles/global.css";
+import Icon from "../components/Icon.astro";
+interface Props {
+  title: string;
+  panel?: boolean;
+  slug?: string;
+}
+const { title, panel = false, slug } = Astro.props;
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="theme-color" content="#f9f7f2" />
+    <title>{title} · Doofi</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <a class="skip" href="#conteudo">
+      Pular para o conteúdo
+    </a>
+    <div class="demo-bar">
+      <span>
+        <span class="demo-dot"></span> Protótipo P1{" "}
+        <span class="demo-detail">
+          · Dados fictícios. Nenhum pagamento real.
+        </span>
+      </span>
+      <a href="/demo">
+        Explorar demonstração <span aria-hidden="true">↗</span>
+      </a>
+    </div>
+    <header class="site-header wrap">
+      <a class="brand" href="/" aria-label="Doofi, início">
+        <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
+          <path
+            d="M16 2c4 0 5 7 5 9 2 0 9 1 9 5s-7 5-9 5c0 2-1 9-5 9s-5-7-5-9c-2 0-9-1-9-5s7-5 9-5c0-2 1-9 5-9Z"
+            fill="currentColor"
+          />
+        </svg>
+        doofi<span class="brand-period">.</span>
+      </a>
+      <span class="header-caption">O bom do bairro, aqui.</span>
+      <nav aria-label="Navegação principal">
+        {panel ? (
+          <a class="nav-link" href="/demo">
+            <Icon name="store" />
+            Lojas de teste
+          </a>
+        ) : (
+          <a class="nav-link" href="/painel/entrar">
+            <Icon name="user" />
+            <span>Área do lojista</span>
+          </a>
+        )}
+        {slug && (
+          <a class="button button-quiet header-cart" href="#carrinho">
+            <Icon name="bag" />
+            <span class="cart-label">Seu pedido</span>
+            <span class="cart-count" data-cart-count>
+              0
+            </span>
+          </a>
+        )}
+        {panel && (
+          <button class="button button-quiet" id="logout">
+            <Icon name="logout" />
+            Sair
+          </button>
+        )}
+      </nav>
+    </header>
+    <main id="conteudo">
+      <slot />
+    </main>
+    <footer class="site-footer wrap">
+      <a class="brand brand-small" href="/">
+        doofi.
+      </a>
+      <p>Feito para conectar quem faz com quem está perto.</p>
+      <div>
+        <a href="/politicas">Sobre esta demonstração</a>
+        <span> P1 · 2026</span>
+      </div>
+    </footer>
+    <noscript>
+      <p class="notice wrap">
+        Ative o JavaScript para montar o carrinho e testar esta demonstração.
+      </p>
+    </noscript>
+  </body>
+</html>

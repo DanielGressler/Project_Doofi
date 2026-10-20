@@ -1,0 +1,26 @@
+﻿ticket;marco;area;entrega;dependencias;criterio_de_aceite
+S0-01;P1;Arquitetura;POC Astro SSR Workers D1;-;Adapter monta, D1 consulta e batch com rollback, preview protegido
+S0-02;P1;Qualidade;Repositório CI e ambientes;S0-01;"Build typecheck lint testes; local/staging segregados"
+S0-03;P1;Segurança;Modelo de login/sessões e papéis;S0-01;"Conta A não assume B; cookies/CSRF e revogação projetados"
+S1-01;P1;Loja;Publicação loja por slug e cadastro básico;S0-01;"2 lojas fictícias isoladas; lojista e contato visíveis"
+S1-02;P1;Catálogo;Produtos e disponibilidade;S1-01;"3 itens por loja; preços em centavos; imagem mock"
+S1-03;P1;Carrinho;Carrinho de loja única;S1-02;Mistura de lojas rejeitada e quantidade validada
+S1-04;P1;Checkout;Checkout convidado e cálculo seguro;S1-03;Servidor recalcula produtos, frete, endereço mínimo
+S1-05;P1;Pedido;Persistência idempotente e snapshot;S1-04;"10 reenvios retornam um pedido; snapshot de valores"
+S1-06;P1;Auditoria;Evento crítico junto a pedido;S1-05;Falha evento faz rollback de pedido no D1
+S1-07;P1;Cliente;Consulta por token não enumerável;S1-05;Consulta exibe status mínimo sem PII integral
+S2-01;P1;Painel;Lista pedidos e estados para lojista;"S0-03;S1-05";Aceite/recusa/preparo/entrega auditados e isolados
+S2-02;P1;Logística;Retirada e entrega com frete fixo;"S1-04;S2-01";Entrega somente vendedor, região e valor declarados
+S2-03;P1;Logística;Cotação e aceite de valor final;S2-02;Não há total e QR antes de aceite comprador/vendedor
+S2-04;P1;Configuração;Painel para editar catálogo e horários;S2-01;"Lojista gerencia sem dev; alterações auditadas"
+S2-05;P1;Pagamento;Simular estados Pix (sem chave real);S2-01;"P1 sem pagamento real; declaração != confirmação"
+S3-01;P1;Testes;Segurança cross-tenant/concorrência;S2-03;Todos cenários críticos verdes no staging
+S3-02;P1;UX;Teste móvel, acessibilidade e feedback;S2-04;"Teclado e celular 320px; relatório de 5 testes"
+S3-03;P1;Operação;Observabilidade básica e cotas;"S0-02;S1-06";"Métricas Workers/D1 registradas; alertas definidos"
+S3-04;P1;Analytics;Resumo do painel derivado de pedidos;S2-01;Sem clique granular e sem receita bancária inferida
+P2-01;P2;Pagamentos;QR Pix BR Code real para chave do lojista;"S2-03;S3-01";QR homologado com bancos dos vendedores, destinatário validado
+P2-02;P2;Pagamentos;Confirmação manual Pix e ocorrências;P2-01;"Somente lojista autent. marca conferência; print não quita"
+P2-03;P2;Legal;Termos e políticas revisados e publicados;S3-02;Revisão jurídica de CDC/LGPD/contratos e identificação
+P2-04;P2;Operação;Backups independentes e restauração;"S0-01;S3-03";"Restore ensaiado em DB separado; RPO/RTO medidos"
+P2-05;P2;Segurança;Hardening sessões e alterações de chave;"P2-01;S3-01";Reautenticação, auditoria, CSRF, rate limit, incidentes
+P2-06;P2;Piloto;Go/no-go, suporte e 2–5 vendedores;"P2-02;P2-03;P2-04;P2-05";"Gates P2 assinados; suporte e cobrança SaaS separados"

@@ -1,0 +1,117 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Icon from "../../components/Icon.astro";
+import { env } from "cloudflare:workers";
+import { publicStatus } from "../../lib/orders";
+import { AppError } from "../../lib/core";
+let order;
+try {
+  order = await publicStatus(env.DB, Astro.params.token!);
+} catch (error) {
+  if (error instanceof AppError && error.status === 404)
+    Astro.response.status = 404;
+  else throw error;
+}
+---
+
+<Layout
+  title={order ? `Acompanhar ${order.protocol}` : "Pedido não encontrado"}
+>
+  <div class="wrap page-wrap">
+    {order ? (
+      <div
+        id="tracking-app"
+        data-token={Astro.params.token}
+        data-initial={JSON.stringify(order)}
+      >
+        <div class="tracking-heading">
+          <div class="eyebrow">SEU PEDIDO, BEM PERTINHO</div>
+          <h1>
+            Acompanhe cada cuidado<span class="accent">.</span>
+          </h1>
+          <p>
+            Pedido <strong>{order.protocol}</strong> · Guarde este link para
+            voltar quando quiser.
+          </p>
+        </div>
+        <div class="tracking-layout">
+          <div>
+            <section class="card">
+              <div id="tracking-state" class="tracking-state"></div>
+              <div id="tracking-instructions"></div>
+              <div id="tracking-quote"></div>
+              <ul
+                id="tracking-timeline"
+                class="timeline"
+                aria-label="Histórico do pedido"
+              ></ul>
+            </section>
+            <section class="card">
+              <h2>Pagamento de demonstração</h2>
+              <div id="tracking-payment"></div>
+              <p class="small muted">
+                Sem chave Pix e sem QR cobravel. A declaração do comprador é
+                diferente da conferência do lojista. Nenhum evento representa
+                dinheiro recebido.
+              </p>
+            </section>
+          </div>
+          <aside class="card summary">
+            <h2>
+              <Icon name="bag" />
+              Resumo do pedido
+            </h2>
+            <p id="tracking-store" class="small muted"></p>
+            <ul class="summary-list" id="tracking-items"></ul>
+            <div class="total-row">
+              <span>Produtos</span>
+              <strong id="tracking-subtotal"></strong>
+            </div>
+            <div class="total-row">
+              <span>Entrega</span>
+              <strong id="tracking-fee"></strong>
+            </div>
+            <div class="total-row grand">
+              <span>Total</span>
+              <strong id="tracking-total"></strong>
+            </div>
+            <div id="tracking-store-info" class="detail-section"></div>
+            <button class="button button-quiet button-full" id="copy-link">
+              Copiar link de acompanhamento
+            </button>
+            <p class="small muted">
+              Quem tem este link pode acompanhar o pedido. O endereço e o
+              contato do comprador não são mostrados aqui.
+            </p>
+          </aside>
+        </div>
+        <div class="track-refresh">
+          <button class="button button-quiet" id="refresh-tracking">
+            <Icon name="refresh" size={17} />
+            Atualizar pedido
+          </button>
+          <p class="small muted">
+            Acompanhamento por status. Sem localização em tempo real.
+          </p>
+          <p
+            id="feedback"
+            class="feedback"
+            role="status"
+            aria-live="polite"
+          ></p>
+        </div>
+      </div>
+    ) : (
+      <div class="empty-state">
+        <h1>Não encontramos este pedido.</h1>
+        <p>O link pode estar incompleto, expirado ou ter sido revogado.</p>
+        <a href="/demo" class="button button-primary">
+          Voltar à demonstração
+        </a>
+      </div>
+    )}
+  </div>
+</Layout>
+<script>
+  import "../../scripts/tracking";
+</script>

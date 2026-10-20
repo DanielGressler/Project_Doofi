@@ -1,0 +1,17 @@
+---
+import Layout from "../layouts/Layout.astro";
+Astro.response.status = 404;
+---
+
+<Layout title="Página não encontrada">
+  <div class="wrap page-wrap">
+    <div class="empty-state">
+      <div class="eyebrow">404 · CAMINHO NÃO ENCONTRADO</div>
+      <h1>Vamos voltar para perto?</h1>
+      <p>Esta página ou loja não está disponível.</p>
+      <a class="button button-primary" href="/demo">
+        Abrir demonstração
+      </a>
+    </div>
+  </div>
+</Layout>

@@ -1,0 +1,169 @@
+---
+interface Props {
+  kind: string;
+  large?: boolean;
+}
+const { kind, large = false } = Astro.props;
+const backgrounds: Record<string, string> = {
+  bread: "#f1d9b9",
+  croissant: "#f7e7cb",
+  coffee: "#e3e7df",
+  bowl: "#dce8d0",
+  salad: "#f1e6bc",
+  juice: "#f8dfbc",
+};
+---
+
+<svg
+  class:list={["product-art", { large }]}
+  viewBox="0 0 320 220"
+  role="img"
+  aria-label="Ilustração fictícia do produto"
+>
+  <rect
+    width="320"
+    height="220"
+    fill={backgrounds[kind] ?? backgrounds.bread}
+  />
+  <circle cx="270" cy="34" r="64" fill="#fff" opacity=".2" />
+  <path d="M0 185Q130 160 320 198V220H0Z" fill="#b4906b" opacity=".12" />
+  {kind === "bread" && (
+    <g>
+      <ellipse
+        cx="161"
+        cy="170"
+        rx="103"
+        ry="15"
+        fill="#614526"
+        opacity=".12"
+      />
+      <path
+        d="M58 143c3-52 52-91 111-89 51 1 94 41 96 89 1 26-52 41-108 39-58-2-101-13-99-39Z"
+        fill="#9d542c"
+      />
+      <path
+        d="M60 132c12-48 56-80 107-78 45 1 81 30 92 72-31 20-67 26-100 25-38-1-66-6-99-19Z"
+        fill="#d99347"
+      />
+      <path
+        d="M93 123q-5-25 23-45m8 55q-5-30 24-58m10 63q-3-35 25-59m8 53q0-27 22-41"
+        fill="none"
+        stroke="#f6ce8b"
+        stroke-width="12"
+        stroke-linecap="round"
+      />
+      <path
+        d="m91 94 8-4m105 22 6 3m-47 39 7-1m-61-9 5 1m111-18 6 1"
+        stroke="#754323"
+        stroke-width="2"
+        opacity=".5"
+      />
+    </g>
+  )}
+  {kind === "croissant" && (
+    <g transform="rotate(-10 160 120)">
+      <ellipse
+        cx="160"
+        cy="178"
+        rx="104"
+        ry="13"
+        fill="#846336"
+        opacity=".12"
+      />
+      <path
+        d="M53 148c-1-18 22-40 37-52 15-18 25-37 49-43 17-11 39-7 53 5 25 9 38 25 44 46 19 18 30 40 26 52-15 6-38-6-49-14-37 21-77 17-109-3-17 13-39 20-51 9Z"
+        fill="#b9692c"
+      />
+      <path
+        d="M76 132c3-21 18-37 29-39l14 44-23 8Zm33-46q14-27 33-30l9 91-28-8Zm42-33q16-6 32 3l-1 91-25 5Zm41 10q23 11 31 33l-26 45-11 4Zm36 39q23 16 26 39l-30-4-18-1Z"
+        fill="#e9a34e"
+      />
+      <path
+        d="m125 77 7 37m32-45 2 52m35-32-6 29"
+        stroke="#ffce79"
+        stroke-width="7"
+        stroke-linecap="round"
+      />
+    </g>
+  )}
+  {kind === "coffee" && (
+    <g>
+      <ellipse cx="161" cy="167" rx="92" ry="22" fill="#f9f5ea" />
+      <ellipse cx="161" cy="169" rx="66" ry="12" fill="#b7b9a9" opacity=".25" />
+      <path
+        d="M204 94h15c34 0 30 47-10 45"
+        fill="none"
+        stroke="#f9f7ee"
+        stroke-width="12"
+      />
+      <path d="M99 87h111l-7 54c-5 38-90 38-97 0Z" fill="#fbf8ef" />
+      <ellipse cx="155" cy="87" rx="56" ry="16" fill="#d3d2c5" />
+      <ellipse cx="155" cy="87" rx="47" ry="11" fill="#5f392a" />
+      <path
+        d="M126 47q-12-12 0-23m32 28q-12-15 2-30m27 28q-9-12 1-22"
+        fill="none"
+        stroke="#fff"
+        stroke-width="4"
+        stroke-linecap="round"
+        opacity=".8"
+      />
+    </g>
+  )}
+  {["bowl", "salad"].includes(kind) && (
+    <g>
+      <ellipse
+        cx="160"
+        cy="179"
+        rx="100"
+        ry="12"
+        fill="#6b7e42"
+        opacity=".15"
+      />
+      <path d="M58 107h205c-5 86-192 86-205 0" fill="#f9f7ed" />
+      <ellipse cx="160" cy="108" rx="104" ry="57" fill="#d5dbc2" />
+      <ellipse cx="160" cy="105" rx="94" ry="47" fill="#65874b" />
+      <path
+        d="M82 91q8-43 30-17 25-27 29 4 27-29 31-2 27-24 34 8 36-9 26 22-9 23-37 8-12 26-32 2-24 25-38 0-35 18-43-7Z"
+        fill="#8caa53"
+      />
+      <g fill="#d87345">
+        <circle cx="117" cy="102" r="15" />
+        <circle cx="192" cy="82" r="14" />
+        <circle cx="199" cy="123" r="13" />
+      </g>
+      <g fill="#f3d5a0">
+        <circle cx="155" cy="85" r="8" />
+        <circle cx="147" cy="107" r="9" />
+        <circle cx="167" cy="123" r="8" />
+        <circle cx="172" cy="101" r="8" />
+      </g>
+      <path
+        d="m96 114 16 13m86-26 20 9m-68-40 11 4"
+        stroke="#eebf59"
+        stroke-width="6"
+        stroke-linecap="round"
+      />
+    </g>
+  )}
+  {kind === "juice" && (
+    <g>
+      <ellipse cx="158" cy="181" rx="74" ry="11" fill="#a07035" opacity=".12" />
+      <path d="m115 58 11 112q29 18 59 0l12-112Z" fill="#fff" opacity=".8" />
+      <path d="m120 81 10 86q24 14 51 0l10-86Z" fill="#edab37" />
+      <ellipse cx="155" cy="81" rx="35" ry="9" fill="#f3c44c" />
+      <path
+        d="m163 137 16-108 25-8"
+        stroke="#71825b"
+        stroke-width="5"
+        fill="none"
+      />
+      <circle cx="110" cy="72" r="26" fill="#df8d27" />
+      <circle cx="110" cy="72" r="21" fill="#fbd870" />
+      <path
+        d="m110 52 0 40m-20-20h40M95 57l30 30m0-30-30 30"
+        stroke="#fff0bf"
+        stroke-width="2"
+      />
+    </g>
+  )}
+</svg>

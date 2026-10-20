@@ -1,0 +1,86 @@
+---
+import Layout from "../layouts/Layout.astro";
+import ProductArt from "../components/ProductArt.astro";
+---
+
+<Layout title="Laboratório P1">
+  <div class="wrap page-wrap">
+    <div class="page-heading">
+      <div>
+        <div class="eyebrow">DOOFI · LABORATÓRIO P1</div>
+        <h1>
+          Do pedido ao primeiro sorriso<span class="accent">.</span>
+        </h1>
+        <p>Duas lojas fictícias, uma jornada completa para testar.</p>
+      </div>
+    </div>
+    <div class="notice">
+      Ambiente exclusivamente local. Nenhum dado, compra, entrega ou Pix real.
+      Abra o painel em outra aba para acompanhar o atendimento.
+    </div>
+    <div class="demo-grid">
+      <article class="card">
+        <ProductArt kind="bread" />
+        <div class="eyebrow">LOJA A · PADARIA</div>
+        <h2>Casa do Forno</h2>
+        <p>
+          Pães artesanais, croissants e café. Retirada gratuita, entrega fixa de
+          R$ 6,00 ou frete a combinar.
+        </p>
+        <a class="button button-primary" href="/loja/casa-do-forno">
+          Pedir nesta loja →
+        </a>
+        <p class="small">
+          Acesso do lojista: <span class="code">forno@demo.doofi.test</span>
+        </p>
+      </article>
+      <article class="card">
+        <ProductArt kind="bowl" />
+        <div class="eyebrow">LOJA B · COZINHA FRESCA</div>
+        <h2>Verde à Mesa</h2>
+        <p>
+          Bowls, saladas e sucos. Retirada gratuita, entrega fixa de R$ 8,00 ou
+          frete a combinar. Painel separado da loja A.
+        </p>
+        <a class="button button-dark" href="/loja/verde-mesa">
+          Pedir nesta loja →
+        </a>
+        <p class="small">
+          Acesso do lojista: <span class="code">verde@demo.doofi.test</span>
+        </p>
+      </article>
+    </div>
+    <section class="card legal" style="margin-top:24px">
+      <h2>Roteiro de teste</h2>
+      <ol>
+        <li>
+          Escolha uma loja, adicione dois produtos e envie o checkout com dados
+          fictícios.
+        </li>
+        <li>
+          Guarde o link do pedido. No painel do lojista, aceite e avance o
+          atendimento até a conclusão.
+        </li>
+        <li>
+          Repita com entrega fixa e entrega a combinar. Na cotação, volte ao
+          link do comprador para aceitar o frete.
+        </li>
+        <li>
+          Simule a declaração de Pix e a conferência pelo lojista. Observe que
+          os estados permanecem distintos.
+        </li>
+        <li>
+          Saia do painel e entre na outra loja. Cada conta recebe apenas os seus
+          pedidos e produtos.
+        </li>
+      </ol>
+      <p>
+        Senha pública de demonstração das duas contas:{" "}
+        <span class="code">demo-doofi-P1!</span>
+      </p>
+      <a class="button button-quiet" href="/painel/entrar">
+        Entrar no painel do lojista
+      </a>
+    </section>
+  </div>
+</Layout>

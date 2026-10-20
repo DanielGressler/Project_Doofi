@@ -1,0 +1,133 @@
+---
+import PanelLayout from "../../layouts/PanelLayout.astro";
+import { env } from "cloudflare:workers";
+import type { Store } from "../../lib/types";
+const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
+  .bind(Astro.locals.session!.store_id)
+  .first<Store>())!;
+---
+
+<PanelLayout title="Minha loja" active="store">
+  <div class="page-heading">
+    <div>
+      <div class="eyebrow">SEU JEITO DE ATENDER</div>
+      <h1>
+        A casa é sua<span class="accent">.</span>
+      </h1>
+      <p>Organize as informações e a entrega da sua loja fictícia.</p>
+    </div>
+  </div>
+  <form id="store-form" data-version={store.version} class="card">
+    <div class="form-grid">
+      <label class="field">
+        <span>Nome da loja</span>
+        <input
+          name="title"
+          value={store.title}
+          minlength="2"
+          maxlength="80"
+          required
+        />
+      </label>
+      <label class="field">
+        <span>Contato comercial fictício</span>
+        <input
+          name="contact"
+          value={store.contact}
+          minlength="4"
+          maxlength="80"
+          required
+        />
+      </label>
+      <label class="field full">
+        <span>Descrição</span>
+        <textarea
+          name="description"
+          minlength="2"
+          maxlength="300"
+          required
+        >{store.description}</textarea>
+      </label>
+      <label class="field full">
+        <span>Horários informados ao comprador</span>
+        <input
+          name="hours"
+          value={store.hours}
+          minlength="3"
+          maxlength="120"
+          required
+        />
+        <small>
+          A abertura é controlada pelo botão de disponibilidade abaixo. A P1 não
+          interpreta automaticamente o texto de horários.
+        </small>
+      </label>
+      <label class="field full">
+        <span>Endereço fictício de retirada</span>
+        <input
+          name="pickup_address"
+          value={store.pickup_address}
+          minlength="4"
+          maxlength="160"
+          required
+        />
+      </label>
+      <label class="field">
+        <span>Taxa fixa de entrega (R$)</span>
+        <input
+          type="number"
+          name="delivery_fee"
+          value={(store.delivery_fee / 100).toFixed(2)}
+          min="0"
+          max="1000"
+          step="0.01"
+          required
+        />
+      </label>
+      <label class="field">
+        <span>Bairros atendidos</span>
+        <input
+          name="neighborhoods"
+          value={store.neighborhoods}
+          minlength="2"
+          maxlength="300"
+          required
+        />
+        <small>
+          Separe os bairros por vírgulas. Sem mapas ou geolocalização.
+        </small>
+      </label>
+    </div>
+    <label class="checkbox">
+      <input type="checkbox" name="is_open" checked={!!store.is_open} />
+      <span>Loja aberta para novos pedidos de teste</span>
+    </label>
+    <button type="submit" class="button button-primary">
+      Salvar configurações
+    </button>
+    <p id="feedback" class="feedback" role="alert" aria-live="polite"></p>
+  </form>
+</PanelLayout>
+<script>
+  import { $, api, busy, feedback } from "../../scripts/browser";
+  const form = $<HTMLFormElement>("#store-form");
+  form.onsubmit = (event) => {
+    event.preventDefault();
+    void busy($<HTMLButtonElement>('button[type="submit"]', form), async () => {
+      const fields = new FormData(form);
+      await api(
+        "painel/loja",
+        {
+          ...Object.fromEntries(fields),
+          delivery_fee: Math.round(Number(fields.get("delivery_fee")) * 100),
+          is_open: fields.get("is_open") === "on",
+          version: Number(form.dataset.version),
+        },
+        "PATCH",
+        $("#panel-app").dataset.csrf,
+      );
+      form.dataset.version = String(Number(form.dataset.version) + 1);
+      feedback("Configurações salvas. A loja já mostra as novas informações.");
+    });
+  };
+</script>

@@ -1,0 +1,244 @@
+---
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import ProductArt from "../../../components/ProductArt.astro";
+import HeroArt from "../../../components/HeroArt.astro";
+import Icon from "../../../components/Icon.astro";
+import { getStore, getProducts } from "../../../lib/catalog";
+import { money } from "../../../lib/types";
+let store;
+try {
+  store = await getStore(env.DB, Astro.params.slug!);
+} catch {
+  return Astro.redirect("/404");
+}
+const products = await getProducts(env.DB, store.id);
+const green = store.theme === "green";
+---
+
+<Layout title={store.title} slug={store.slug}>
+  <div
+    id="store-app"
+    class:list={["wrap", { "theme-green": green }]}
+    data-slug={store.slug}
+    data-products={JSON.stringify(products)}
+    data-store={JSON.stringify({
+      delivery_fee: store.delivery_fee,
+      is_open: store.is_open,
+    })}
+  >
+    <div class="breadcrumb">
+      <a href="/demo">Lojas de demonstração</a>
+      <span>/</span>
+      <span>{store.title}</span>
+    </div>
+    <section class="store-hero" aria-labelledby="store-heading">
+      <div class="hero-copy">
+        <div class="eyebrow">
+          <span class="mini-spark">✳︎</span> FEITO AQUI, NO SEU BAIRRO
+        </div>
+        <h1 id="store-heading">
+          {green ? "Uma pausa leve." : "Pequenos sabores."}
+          <br />
+          <em>{green ? "Um dia mais fresco." : "Bons momentos."}</em>
+        </h1>
+        <p>{store.description}</p>
+        <a class="button button-primary" href="#cardapio">
+          Conheça o cardápio <Icon name="arrow" size={18} />
+        </a>
+        <div class="hero-note">
+          <span class="tiny-check">✓</span> Peça direto de quem prepara.
+        </div>
+      </div>
+      <div class="hero-visual">
+        {green ? <ProductArt kind="bowl" large /> : <HeroArt />}
+        <div class="hero-stamp">
+          <span>feito com</span>
+          <strong>carinho</strong>
+          <span>e pertinho ♡</span>
+        </div>
+      </div>
+    </section>
+    <section class="store-info" aria-label="Informações da loja">
+      <div class="store-identity">
+        <div class:list={["store-avatar", { green }]}>
+          <Icon name="store" size={26} />
+        </div>
+        <div>
+          <h2>{store.title}</h2>
+          <span class:list={["open-label", { closed: !store.is_open }]}>
+            <span></span>
+            {store.is_open
+              ? "Recebendo pedidos de teste"
+              : "Fechada para pedidos"}
+          </span>
+        </div>
+      </div>
+      <div class="info-item">
+        <Icon name="clock" />
+        <div>
+          <strong>Horários informados</strong>
+          <span>{store.hours}</span>
+        </div>
+      </div>
+      <div class="info-item">
+        <Icon name="truck" />
+        <div>
+          <strong>Retire ou receba da loja</strong>
+          <span>
+            Retirada grátis · Entrega a partir de {money(store.delivery_fee)}
+          </span>
+        </div>
+      </div>
+    </section>
+    <div class="shop-layout">
+      <section id="cardapio" aria-labelledby="menu-heading">
+        <div class="section-top">
+          <div>
+            <div class="eyebrow">ESCOLHA SEUS FAVORITOS</div>
+            <h2 id="menu-heading">
+              Nosso cardápio<span class="accent">.</span>
+            </h2>
+          </div>
+          <span class="muted small">{products.length} produtos</span>
+        </div>
+        <div
+          class="category-tabs"
+          role="group"
+          aria-label="Filtrar por categoria"
+        >
+          <button
+            class="category-tab active"
+            data-category="all"
+            aria-pressed="true"
+          >
+            Todos os produtos
+          </button>
+          {[...new Set(products.map((p) => p.category))].map((category) => (
+            <button
+              class="category-tab"
+              data-category={category}
+              aria-pressed="false"
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+        <div class="product-grid">
+          {products.map((p) => (
+            <article
+              class:list={["product-card", { unavailable: !p.available }]}
+              data-product-category={p.category}
+            >
+              <div class="product-picture">
+                <ProductArt kind={p.image} />
+                {!p.available && (
+                  <span class="unavailable-label">Indisponível</span>
+                )}
+              </div>
+              <div class="product-content">
+                <span class="product-category">{p.category}</span>
+                <h3>{p.title}</h3>
+                <p>{p.description}</p>
+                <div class="product-bottom">
+                  <strong>{money(p.price)}</strong>
+                  <button
+                    class="add-button"
+                    data-add={p.id}
+                    aria-label={`Adicionar ${p.title}`}
+                    disabled={!p.available || !store.is_open}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+        <div class="handmade-note">
+          <span class="mini-spark">✳︎</span>
+          <div>
+            <strong>De um pequeno negócio para o seu dia.</strong>
+            <p>
+              Seu pedido vai direto para a loja. A entrega é feita pelo próprio
+              vendedor.
+            </p>
+          </div>
+        </div>
+      </section>
+      <aside id="carrinho" class="cart-panel" aria-labelledby="cart-heading">
+        <div class="cart-title">
+          <h2 id="cart-heading">
+            <Icon name="bag" />
+            Seu pedido
+          </h2>
+          <span class="cart-count" data-cart-count>
+            0
+          </span>
+        </div>
+        <div id="cart-items"></div>
+        <div id="cart-empty" class="empty-cart">
+          <div class="empty-bag">
+            <Icon name="bag" size={36} />
+          </div>
+          <h3>Que tal algo gostoso?</h3>
+          <p>
+            Adicione seus favoritos e<br />
+            monte seu pedido por aqui.
+          </p>
+        </div>
+        <div id="cart-totals" hidden>
+          <div class="total-row">
+            <span>Subtotal</span>
+            <strong id="cart-subtotal"></strong>
+          </div>
+          <p class="small muted">Entrega e total confirmados no checkout.</p>
+          <a
+            class="button button-primary button-full"
+            href={`/loja/${store.slug}/checkout`}
+          >
+            Continuar pedido <Icon name="arrow" size={18} />
+          </a>
+        </div>
+        <div class="cart-footnote">
+          <Icon name="check" size={16} /> Sem conta. Direto com a loja.
+        </div>
+        <p
+          id="cart-feedback"
+          class="feedback"
+          role="status"
+          aria-live="polite"
+        ></p>
+      </aside>
+    </div>
+    <section class="store-details">
+      <div>
+        <div class="eyebrow">PERTO DE VOCÊ</div>
+        <h2>
+          Uma loja, gente de verdade<span class="accent">.</span>
+        </h2>
+        <p>Na P1, toda esta experiência usa uma loja e produtos fictícios.</p>
+      </div>
+      <div class="detail-columns">
+        <div>
+          <Icon name="pin" />
+          <strong>Onde retirar</strong>
+          <p>{store.pickup_address}</p>
+        </div>
+        <div>
+          <Icon name="truck" />
+          <strong>Região de entrega</strong>
+          <p>{store.neighborhoods}</p>
+        </div>
+        <div>
+          <Icon name="user" />
+          <strong>Fale com a loja</strong>
+          <p>{store.contact}</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</Layout>
+<script>
+  import "../../../scripts/store";
+</script>

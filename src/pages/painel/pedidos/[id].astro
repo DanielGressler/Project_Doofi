@@ -1,0 +1,349 @@
+---
+import PanelLayout from "../../../layouts/PanelLayout.astro";
+import { env } from "cloudflare:workers";
+import { ownedOrder, orderDetails, transitions } from "../../../lib/orders";
+import {
+  money,
+  statusLabels,
+  paymentLabels,
+  formatDate,
+} from "../../../lib/types";
+import { AppError } from "../../../lib/core";
+let order;
+try {
+  order = await ownedOrder(env.DB, Astro.locals.session!, Astro.params.id!);
+} catch (error) {
+  if (error instanceof AppError && error.status === 404) {
+    Astro.response.status = 404;
+  } else throw error;
+}
+const detail = order ? await orderDetails(env.DB, order) : null;
+const allowed = order
+  ? (transitions[order.status] ?? []).filter(
+      (s) =>
+        !(s === "READY" && order.fulfillment !== "PICKUP") &&
+        !(s === "OUT_FOR_DELIVERY" && order.fulfillment === "PICKUP"),
+    )
+  : [];
+const labels: Record<string, string> = {
+  ACCEPTED: "Aceitar pedido",
+  REJECTED: "Recusar pedido",
+  PREPARING: "Iniciar preparo",
+  READY: "Pronto para retirar",
+  OUT_FOR_DELIVERY: "Saiu para entrega",
+  COMPLETED: "Concluir pedido",
+  CANCELLED: "Cancelar pedido",
+};
+---
+
+<PanelLayout title={order?.protocol ?? "Pedido não encontrado"} active="orders">
+  <a class="back-link" href="/painel/pedidos">
+    ← Voltar aos pedidos
+  </a>
+  {!order || !detail ? (
+    <div class="empty-state">
+      <h1>Pedido não encontrado.</h1>
+      <p>Este pedido não está disponível para a sua loja.</p>
+    </div>
+  ) : (
+    <div id="order-detail" data-id={order.id} data-version={order.version}>
+      <div class="page-heading">
+        <div>
+          <div class="eyebrow">
+            PEDIDO DE TESTE · {formatDate(order.created_at)}
+          </div>
+          <h1>{order.protocol}</h1>
+          <span class="badge" data-status={order.status}>
+            {statusLabels[order.status]}
+          </span>
+        </div>
+        <button class="button button-quiet" id="reload-detail">
+          Atualizar dados ↻
+        </button>
+      </div>
+      <div class="detail-layout">
+        <div>
+          <section class="card">
+            <h2>O que vamos preparar?</h2>
+            <ul class="summary-list">
+              {detail.items.map((i) => (
+                <li>
+                  <span>
+                    {i.quantity} × {i.title}
+                    <br />
+                    <small class="muted">
+                      {money(i.price)} por unidade · preço do pedido
+                    </small>
+                  </span>
+                  <strong>{money(i.price * i.quantity)}</strong>
+                </li>
+              ))}
+            </ul>
+            <div class="total-row">
+              <span>Produtos</span>
+              <strong>{money(order.subtotal)}</strong>
+            </div>
+            <div class="total-row">
+              <span>Entrega</span>
+              <strong>{money(order.delivery_fee)}</strong>
+            </div>
+            <div class="total-row grand">
+              <span>Total do pedido</span>
+              <strong>{money(order.total)}</strong>
+            </div>
+            <div class="detail-section">
+              <h3>Comprador fictício</h3>
+              <p>
+                {order.customer_name}
+                <br />
+                {order.customer_contact}
+              </p>
+            </div>
+            <div class="detail-section">
+              <h3>
+                {order.fulfillment === "PICKUP"
+                  ? "Retirada na loja"
+                  : "Entrega pelo vendedor"}
+              </h3>
+              <p>
+                {order.fulfillment === "PICKUP"
+                  ? "O comprador retira na loja."
+                  : `${order.address}\n${order.neighborhood} · CEP ${order.postal_code}`}
+              </p>
+            </div>
+            {order.note && (
+              <div class="detail-section">
+                <h3>Observação do comprador</h3>
+                <p>{order.note}</p>
+              </div>
+            )}
+          </section>
+          <section class="card">
+            <h2>Atendimento</h2>
+            {allowed.length ? (
+              <>
+                <label class="field">
+                  <span>Motivo para recusa ou cancelamento</span>
+                  <input
+                    id="transition-reason"
+                    maxlength="160"
+                    placeholder="Obrigatório para recusar ou cancelar"
+                  />
+                </label>
+                <div class="actions">
+                  {allowed.map((s) => (
+                    <button
+                      class:list={[
+                        "button",
+                        s === "REJECTED" || s === "CANCELLED"
+                          ? "button-danger"
+                          : "button-primary",
+                      ]}
+                      data-transition={s}
+                    >
+                      {labels[s]}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p class="small muted">
+                O atendimento chegou a um estado final. O histórico continua
+                disponível.
+              </p>
+            )}
+          </section>
+          {order.fulfillment === "QUOTE" && (
+            <section class="card">
+              <h2>Proposta de entrega</h2>
+              {detail.quote && (
+                <p class="small muted">
+                  Proposta {detail.quote.version}: {money(detail.quote.fee)} ·{" "}
+                  {detail.quote.estimate}
+                  <br />
+                  Válida até {formatDate(detail.quote.expires_at)}.{" "}
+                  {detail.quote.accepted_at
+                    ? "Aceita pelo comprador."
+                    : "Aguardando aceite explícito do comprador."}
+                </p>
+              )}
+              {["QUOTE_PENDING", "QUOTE_PROPOSED"].includes(order.status) && (
+                <form id="quote-form">
+                  <div class="form-grid">
+                    <label class="field">
+                      <span>Frete (R$)</span>
+                      <input
+                        type="number"
+                        name="fee"
+                        min="0"
+                        max="1000"
+                        step="0.01"
+                        value="9.00"
+                        required
+                      />
+                    </label>
+                    <label class="field">
+                      <span>Validade (minutos)</span>
+                      <input
+                        type="number"
+                        name="validMinutes"
+                        min="1"
+                        max="1440"
+                        value="30"
+                        required
+                      />
+                    </label>
+                    <label class="field full">
+                      <span>Prazo estimado</span>
+                      <input
+                        name="estimate"
+                        value="Até 45 minutos após o aceite"
+                        minlength="3"
+                        maxlength="100"
+                        required
+                      />
+                    </label>
+                  </div>
+                  <button
+                    class="button button-primary"
+                    type="submit"
+                    style="margin-top:18px"
+                  >
+                    Enviar proposta de frete
+                  </button>
+                </form>
+              )}
+            </section>
+          )}
+          <section class="card">
+            <h2>Histórico de auditoria</h2>
+            <ul id="audit-list" class="audit-list">
+              <li>Consultando eventos...</li>
+            </ul>
+          </section>
+        </div>
+        <aside class="card">
+          <h2>Pagamento simulado</h2>
+          <p class="small">
+            {detail.payment.method === "PIX_SIMULATED"
+              ? "Pix demonstrativo"
+              : "Na retirada ou entrega · demonstração"}
+          </p>
+          <p class="notice">
+            {paymentLabels[detail.payment.status]}
+            <br />
+            Nenhuma transferência ou confirmação bancária.
+          </p>
+          {order.total !== null &&
+            [
+              "ACCEPTED",
+              "PREPARING",
+              "READY",
+              "OUT_FOR_DELIVERY",
+              "COMPLETED",
+            ].includes(order.status) &&
+            detail.payment.status !== "SIMULATED_SELLER_CONFIRMED" && (
+              <button
+                class="button button-quiet button-full"
+                id="confirm-payment"
+              >
+                Simular conferência do lojista
+              </button>
+            )}
+          <p class="small muted">
+            A declaração do comprador não equivale à conferência do lojista. Na
+            P1, ambas são apenas eventos simulados.
+          </p>
+        </aside>
+      </div>
+      <p id="feedback" class="feedback" role="alert" aria-live="polite"></p>
+    </div>
+  )}
+</PanelLayout>
+<script>
+  import { $, api, busy, el, feedback } from "../../../scripts/browser";
+  import { formatDate } from "../../../lib/types";
+  const root = $("#order-detail");
+  if (root) {
+    const id = root.dataset.id!;
+    const csrf = $("#panel-app").dataset.csrf!;
+    const version = Number(root.dataset.version);
+    document.querySelectorAll<HTMLButtonElement>("[data-transition]").forEach(
+      (button) =>
+        (button.onclick = () =>
+          void busy(button, async () => {
+            await api(
+              `painel/pedidos/${id}/transicoes`,
+              {
+                version,
+                status: button.dataset.transition,
+                reason: $<HTMLInputElement>("#transition-reason").value,
+              },
+              "POST",
+              csrf,
+            );
+            location.reload();
+          })),
+    );
+    $("#reload-detail").onclick = () => location.reload();
+    $<HTMLFormElement>("#quote-form")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const form = event.currentTarget as HTMLFormElement;
+      const fields = new FormData(form);
+      void busy(
+        $<HTMLButtonElement>('button[type="submit"]', form),
+        async () => {
+          await api(
+            `painel/pedidos/${id}/cotacao`,
+            {
+              version,
+              fee: Math.round(Number(fields.get("fee")) * 100),
+              validMinutes: Number(fields.get("validMinutes")),
+              estimate: fields.get("estimate"),
+            },
+            "POST",
+            csrf,
+          );
+          location.reload();
+        },
+      );
+    });
+    $("#confirm-payment")?.addEventListener(
+      "click",
+      (event) =>
+        void busy(event.currentTarget as HTMLButtonElement, async () => {
+          await api(
+            `painel/pedidos/${id}/simular-conferencia`,
+            { version },
+            "POST",
+            csrf,
+          );
+          location.reload();
+        }),
+    );
+    api<
+      {
+        action: string;
+        actor_id: string;
+        created_at: number;
+        metadata: string;
+        correlation_id: string;
+      }[]
+    >(`painel/pedidos/${id}/auditoria`)
+      .then((events) => {
+        const list = $("#audit-list");
+        list.replaceChildren();
+        for (const event of events) {
+          const li = el("li", event.action.replaceAll("_", " "));
+          li.append(
+            el(
+              "small",
+              `${formatDate(event.created_at)} · ${event.actor_id} · ${event.correlation_id.slice(0, 8)}`,
+            ),
+          );
+          list.append(li);
+        }
+      })
+      .catch((e) => feedback(e.message, true));
+  }
+</script>

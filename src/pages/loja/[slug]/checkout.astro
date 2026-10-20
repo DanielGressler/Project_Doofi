@@ -1,0 +1,250 @@
+---
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import Icon from "../../../components/Icon.astro";
+import { getStore, getProducts } from "../../../lib/catalog";
+import { money } from "../../../lib/types";
+let store;
+try {
+  store = await getStore(env.DB, Astro.params.slug!);
+} catch {
+  return Astro.redirect("/404");
+}
+const products = await getProducts(env.DB, store.id);
+---
+
+<Layout title="Finalizar pedido de teste">
+  <div
+    id="checkout-app"
+    class="wrap page-wrap"
+    data-slug={store.slug}
+    data-products={JSON.stringify(products)}
+    data-store={JSON.stringify({
+      delivery_fee: store.delivery_fee,
+      is_open: store.is_open,
+    })}
+  >
+    <a class="back-link" href={`/loja/${store.slug}`}>
+      ← Voltar ao cardápio
+    </a>
+    <div class="page-heading">
+      <div>
+        <div class="eyebrow">{store.title} · CHECKOUT DEMONSTRATIVO</div>
+        <h1>
+          Quase na sua mesa<span class="accent">.</span>
+        </h1>
+        <p>Um pedido simples, direto com a loja.</p>
+      </div>
+    </div>
+    <div id="checkout-empty" class="empty-state" hidden>
+      <h2>Seu carrinho está vazio</h2>
+      <p>Escolha algo no cardápio para começar.</p>
+      <a href={`/loja/${store.slug}`} class="button button-primary">
+        Explorar cardápio
+      </a>
+    </div>
+    <form id="checkout-form" class="checkout-layout">
+      <div>
+        <section class="card">
+          <h2>
+            <span class="section-number">1</span>Como podemos chamar você?
+          </h2>
+          <div class="form-grid">
+            <label class="field">
+              <span>Nome fictício</span>
+              <input
+                name="name"
+                value="Cliente Exemplo"
+                required
+                minlength="2"
+                maxlength="80"
+                autocomplete="off"
+              />
+              <small>Use somente dados inventados nesta P1.</small>
+            </label>
+            <label class="field">
+              <span>Contato fictício</span>
+              <input
+                name="contact"
+                value="cliente@exemplo.invalid"
+                required
+                minlength="4"
+                maxlength="80"
+                autocomplete="off"
+              />
+              <small>Este contato não recebe mensagens reais.</small>
+            </label>
+          </div>
+        </section>
+        <section class="card">
+          <h2>
+            <span class="section-number">2</span>Como prefere receber?
+          </h2>
+          <fieldset>
+            <legend class="sr-only">Modalidade de entrega</legend>
+            <div class="choice-list">
+              <label class="choice">
+                <input type="radio" name="fulfillment" value="PICKUP" checked />
+                <span>
+                  <strong>Vou retirar · Grátis</strong>
+                  <small>{store.pickup_address}</small>
+                </span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="fulfillment" value="FIXED" />
+                <span>
+                  <strong>Entrega da loja · {money(store.delivery_fee)}</strong>
+                  <small>Feita pelo vendedor, nos bairros atendidos.</small>
+                </span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="fulfillment" value="QUOTE" />
+                <span>
+                  <strong>Combinar entrega com a loja</strong>
+                  <small>
+                    A loja propõe o frete. Você aceita antes de fechar o total.
+                  </small>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+          <div id="address-fields" class="form-grid detail-section" hidden>
+            <label class="field full">
+              <span>Endereço fictício e número</span>
+              <input
+                name="address"
+                value="Rua das Flores, 10"
+                minlength="5"
+                maxlength="160"
+                autocomplete="off"
+              />
+            </label>
+            <label class="field">
+              <span>Bairro atendido</span>
+              <select name="neighborhood">
+                {store.neighborhoods.split(",").map((n) => (
+                  <option value={n.trim()}>{n.trim()}</option>
+                ))}
+              </select>
+            </label>
+            <label class="field">
+              <span>CEP fictício</span>
+              <input
+                name="postalCode"
+                value="00000-000"
+                inputmode="numeric"
+                pattern="[0-9]{5}-?[0-9]{3}"
+                maxlength="9"
+                autocomplete="off"
+              />
+            </label>
+          </div>
+        </section>
+        <section class="card">
+          <h2>
+            <span class="section-number">3</span>Pagamento de demonstração
+          </h2>
+          <fieldset>
+            <legend class="sr-only">Forma de pagamento simulada</legend>
+            <div class="choice-list">
+              <label class="choice">
+                <input
+                  type="radio"
+                  name="payment"
+                  value="PIX_SIMULATED"
+                  checked
+                />
+                <span>
+                  <strong>Simular Pix</strong>
+                  <small>
+                    Sem chave e sem QR cobravel. Nenhum dinheiro é transferido.
+                  </small>
+                </span>
+              </label>
+              <label class="choice">
+                <input
+                  type="radio"
+                  name="payment"
+                  value="ON_FULFILLMENT_SIMULATED"
+                />
+                <span>
+                  <strong>Simular pagamento na retirada ou entrega</strong>
+                  <small>Apenas demonstração do fluxo de atendimento.</small>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+        </section>
+        <section class="card">
+          <label class="field">
+            <span>
+              Alguma observação? <span class="muted">(opcional)</span>
+            </span>
+            <textarea
+              name="note"
+              maxlength="300"
+              placeholder="Ex.: vou retirar com uma sacola reutilizável."
+            ></textarea>
+          </label>
+          <label class="checkbox">
+            <input name="consent" type="checkbox" required />
+            <span>
+              Confirmo que uso apenas dados fictícios e entendo que este pedido
+              é uma simulação, sem compra ou pagamento real.{" "}
+              <a
+                class="inline-link"
+                href="/politicas"
+                target="_blank"
+                rel="noopener"
+              >
+                Condições da demonstração
+              </a>
+              .
+            </span>
+          </label>
+        </section>
+      </div>
+      <aside class="card summary">
+        <h2>
+          <Icon name="bag" />
+          Seu pedido
+        </h2>
+        <p class="small muted">{store.title}</p>
+        <ul id="checkout-items" class="summary-list"></ul>
+        <div class="total-row">
+          <span>Produtos</span>
+          <strong id="checkout-subtotal"></strong>
+        </div>
+        <div class="total-row">
+          <span>Entrega</span>
+          <strong id="checkout-fee"></strong>
+        </div>
+        <div class="total-row grand">
+          <span>Total</span>
+          <strong id="checkout-total"></strong>
+        </div>
+        <p id="quote-notice" class="notice" hidden>
+          O total ficará em aberto até você aceitar a proposta de frete. Nenhum
+          pagamento é liberado antes do aceite da loja.
+        </p>
+        <p class="small muted">
+          Os valores finais são recalculados pelo servidor ao enviar.
+        </p>
+        <button
+          class="button button-primary button-full"
+          type="submit"
+          id="submit-order"
+        >
+          Enviar pedido de teste <Icon name="arrow" size={18} />
+        </button>
+        <p id="feedback" class="feedback" role="alert" aria-live="polite"></p>
+        <p class="small muted">
+          Guarde o link de acompanhamento exibido após o envio.
+        </p>
+      </aside>
+    </form>
+  </div>
+</Layout>
+<script>
+  import "../../../scripts/checkout";
+</script>

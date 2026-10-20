@@ -1,0 +1,41 @@
+{
+  "name": "doofi-p1",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "scripts": {
+    "dev": "node scripts/run.mjs astro dev --host 0.0.0.0 --ignore-lock --silent",
+    "build": "node scripts/run.mjs astro build",
+    "check": "node scripts/run.mjs astro check",
+    "test": "node scripts/run.mjs vitest run",
+    "test:e2e": "node scripts/run.mjs playwright test",
+    "lint": "node scripts/run.mjs prettier --check .",
+    "format": "node scripts/run.mjs prettier --write .",
+    "db:migrate": "node scripts/run.mjs wrangler d1 migrations apply doofi-local --local",
+    "db:seed": "node scripts/run.mjs wrangler d1 execute doofi-local --local --file db/seed.sql",
+    "preview": "node scripts/run.mjs wrangler dev --config dist/server/wrangler.json --persist-to .wrangler/state --log-level warn",
+    "db:verify-restore": "node scripts/verify-restore.mjs"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "14.4.1",
+    "@fontsource-variable/dm-sans": "5.3.0",
+    "@fontsource-variable/fraunces": "5.3.0",
+    "astro": "7.4.1"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.11",
+    "@axe-core/playwright": "4.14.0",
+    "@cloudflare/vitest-plugin": "1.4.5",
+    "@cloudflare/workers-types": "5.20261019.1",
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2",
+    "prettier": "3.9.10",
+    "prettier-plugin-astro": "1.1.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.0",
+    "wrangler": "4.151.2"
+  }
+}

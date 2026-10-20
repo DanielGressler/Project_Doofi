@@ -1,0 +1,79 @@
+---
+import Layout from "../../layouts/Layout.astro";
+---
+
+<Layout title="Entrar no painel">
+  <div class="wrap page-wrap">
+    <div class="compact-page">
+      <section class="card login-card">
+        <div class="eyebrow">SEU NEGÓCIO, BEM CUIDADO</div>
+        <h1>
+          Olá, lojista<span class="accent">.</span>
+        </h1>
+        <p class="small muted">
+          Entre para atender os pedidos e cuidar da sua loja.
+        </p>
+        <form id="login-form">
+          <label class="field">
+            <span>E-mail de demonstração</span>
+            <input
+              type="email"
+              name="email"
+              value="forno@demo.doofi.test"
+              required
+              autocomplete="username"
+            />
+          </label>
+          <label class="field">
+            <span>Senha de demonstração</span>
+            <input
+              type="password"
+              name="password"
+              value="demo-doofi-P1!"
+              required
+              autocomplete="current-password"
+            />
+          </label>
+          <button class="button button-primary button-full" type="submit">
+            Entrar no painel →
+          </button>
+          <p id="feedback" class="feedback" role="alert" aria-live="polite"></p>
+        </form>
+        <div class="notice">
+          Credenciais públicas de teste. Este login funciona somente localmente.
+          Não utilize uma senha pessoal.
+        </div>
+        <div class="demo-accounts">
+          <button class="demo-account" data-email="forno@demo.doofi.test">
+            Loja A · Casa do Forno <span>Usar conta →</span>
+          </button>
+          <button class="demo-account" data-email="verde@demo.doofi.test">
+            Loja B · Verde à Mesa <span>Usar conta →</span>
+          </button>
+        </div>
+        <p class="small muted" style="margin:18px 0 0">
+          Recuperação de conta e autenticação de produção fazem parte da P2.
+        </p>
+      </section>
+    </div>
+  </div>
+</Layout>
+<script>
+  import { $, api, busy } from "../../scripts/browser";
+  document.querySelectorAll<HTMLButtonElement>("[data-email]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        $<HTMLInputElement>('[name="email"]').value = button.dataset.email!;
+        $<HTMLInputElement>('[name="password"]').value = "demo-doofi-P1!";
+        $<HTMLInputElement>('[name="email"]').focus();
+      }),
+  );
+  $<HTMLFormElement>("#login-form").onsubmit = (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget as HTMLFormElement);
+    void busy($<HTMLButtonElement>('button[type="submit"]'), async () => {
+      await api("login", Object.fromEntries(form));
+      location.assign("/painel/pedidos");
+    });
+  };
+</script>

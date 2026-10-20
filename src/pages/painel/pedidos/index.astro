@@ -1,0 +1,66 @@
+---
+import PanelLayout from "../../../layouts/PanelLayout.astro";
+import Icon from "../../../components/Icon.astro";
+---
+
+<PanelLayout title="Pedidos" active="orders">
+  <div class="page-heading">
+    <div>
+      <div class="eyebrow">CADA PEDIDO É UMA NOVA CONEXÃO</div>
+      <h1>
+        Seu balcão digital<span class="accent">.</span>
+      </h1>
+      <p>Acompanhe o que está chegando e cuide de cada etapa.</p>
+    </div>
+  </div>
+  <div class="stats-grid" aria-label="Resumo dos pedidos">
+    <div class="stat-card">
+      <span>Pedidos de teste</span>
+      <strong id="stat-total">—</strong>
+      <small>Todos os pedidos da loja</small>
+    </div>
+    <div class="stat-card">
+      <span>Aguardando sua ação</span>
+      <strong id="stat-pending">—</strong>
+      <small>Aceite ou cotação</small>
+    </div>
+    <div class="stat-card">
+      <span>Concluídos</span>
+      <strong id="stat-completed">—</strong>
+      <small>Atendimento finalizado</small>
+    </div>
+    <div class="stat-card">
+      <span>Ticket médio de pedidos</span>
+      <strong id="stat-average">—</strong>
+      <small>Não representa recebimento</small>
+    </div>
+  </div>
+  <p class="stats-caption">
+    Valores derivados de pedidos, sem inferir saldo ou liquidação bancária.
+    Lista dos 100 pedidos mais recentes.
+  </p>
+  <p class="stats-caption" id="extra-stats"></p>
+  <div class="toolbar">
+    <select id="status-filter" aria-label="Filtrar pedidos">
+      <option value="all">Todos os pedidos</option>
+      <option value="pending">Aguardando ação</option>
+      <option value="active">Em atendimento</option>
+      <option value="completed">Concluídos</option>
+      <option value="cancelled">Recusados ou cancelados</option>
+    </select>
+    <button class="button button-quiet" id="refresh-orders">
+      <Icon name="refresh" size={17} />
+      Atualizar
+    </button>
+  </div>
+  <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
+  <div id="order-list" class="order-list" aria-label="Pedidos da loja">
+    <p class="muted small">Consultando pedidos...</p>
+  </div>
+  <p class="small muted" style="margin-top:20px">
+    Atualização automática a cada 20 segundos com esta aba aberta.
+  </p>
+</PanelLayout>
+<script>
+  import "../../../scripts/panel-orders";
+</script>
