@@ -22,6 +22,11 @@ if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(name))
 const folder = path.join(root, ".local", "cloudflare");
 mkdirSync(folder, { recursive: true });
 const configPath = path.join(folder, "wrangler.json");
+// Astro resolves this option as a URL; Windows drive paths become a "d:" URL.
+const adapterConfigPath = path
+  .relative(root, configPath)
+  .split(path.sep)
+  .join("/");
 const vars = { APP_MODE: "staging-demo" };
 for (const key of [
   "DOOFI_DEMO_HOST",
@@ -120,7 +125,7 @@ const child = spawn(
   {
     cwd: root,
     stdio: "inherit",
-    env: { ...process.env, DOOFI_WRANGLER_CONFIG: configPath },
+    env: { ...process.env, DOOFI_WRANGLER_CONFIG: adapterConfigPath },
   },
 );
 for (const signal of ["SIGINT", "SIGTERM"])

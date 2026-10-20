@@ -8,6 +8,10 @@ O ID `00000000-0000-0000-0000-000000000001` é uma fixture do emulador local. N�
 
 Não substitua esse ID em `wrangler.jsonc`: esse arquivo continua sendo a configuração local. Os comandos `:staging` geram uma configuração separada em `.local/cloudflare/wrangler.json` e usam `DOOFI_D1_DATABASE_ID`, mantendo os bancos local e remoto separados. O Worker de homologação se chama `project-doofi` por padrão, correspondendo ao nome usado na integração do GitHub.
 
+### Erro de build no Windows: `The URL must be of scheme file`
+
+Atualize `scripts/staging.mjs` para a versão atual do repositório e repita `npm run build:staging`. O adaptador Astro interpreta `configPath` como URL; um caminho absoluto como `D:\myprojects\...` vira uma URL de protocolo `d:`. O script corrigido passa um caminho relativo com barras `/` ao adaptador e mantém os caminhos de arquivo nativos nos comandos do Wrangler. Essa correção não exige recriar o banco nem repetir migrações e seed.
+
 ## 1. Criar e preencher o banco remoto
 
 No painel Cloudflare, abra **Storage & databases → D1**, crie o banco `doofi-demo` e copie seu **Database ID**.
