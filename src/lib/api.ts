@@ -1,10 +1,4 @@
-import {
-  AppError,
-  body,
-  localDemoAllowed,
-  originCheck,
-  rateLimit,
-} from "./core";
+import { AppError, body, originCheck, rateLimit } from "./core";
 import { getSession, login, logout, requireSession } from "./auth";
 import { getProducts, getStore, saveProduct, saveStore } from "./catalog";
 import {
@@ -20,6 +14,7 @@ import {
 } from "./orders";
 import type { Store } from "./types";
 import { uploadImage } from "./media";
+import { demoAllowed, type DemoAccessConfig } from "./access";
 
 const json = (
   value: unknown,
@@ -38,12 +33,13 @@ export async function handleApi(
   request: Request,
   db: D1Database,
   mode: string,
+  access: DemoAccessConfig = {},
 ) {
   try {
-    if (!localDemoAllowed(request, mode))
+    if (!(await demoAllowed(request, mode, access)))
       throw new AppError(
         403,
-        "Esta demonstração P1 só pode ser executada localmente. A homologação exige configuração de acesso protegido.",
+        "Endereço ou acesso não autorizado para esta demonstração.",
       );
     const path = new URL(request.url).pathname
       .replace(/^\/api\/v1\//, "")
@@ -53,7 +49,11 @@ export async function handleApi(
     if (mutates) originCheck(request);
     if (path === "health" && method === "GET") {
       await db.prepare("SELECT 1").first();
-      return json({ ok: true, mode: "synthetic-only", database: "D1 local" });
+      return json({
+        ok: true,
+        mode: "synthetic-only",
+        database: mode === "local-demo" ? "D1 local" : "D1 homologação",
+      });
     }
     if (path === "session" && method === "GET") {
       const session = await getSession(db, request);

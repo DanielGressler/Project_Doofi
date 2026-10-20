@@ -1,12 +1,12 @@
 import { defineMiddleware } from "astro:middleware";
 import { env } from "cloudflare:workers";
 import { getSession } from "./lib/auth";
-import { localDemoAllowed } from "./lib/core";
+import { demoAllowed } from "./lib/access";
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  if (!localDemoAllowed(context.request, env.APP_MODE))
+  if (!(await demoAllowed(context.request, env.APP_MODE, env)))
     return new Response(
-      "P1 disponível somente em ambiente local. Configure homologação protegida antes de publicar.",
+      "Demonstração indisponível neste endereço ou acesso não autorizado. Verifique a configuração do ambiente e do Cloudflare Access.",
       { status: 403 },
     );
   if (context.url.pathname.startsWith("/painel")) {

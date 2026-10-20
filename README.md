@@ -2,7 +2,7 @@
 
 Loja digital multiempresa com catálogo, carrinho, checkout convidado, atendimento pelo lojista e acompanhamento por link. Duas lojas fictícias demonstram retirada, entrega própria com taxa fixa e cotação com aceite explícito.
 
-**Somente dados sintéticos. Sem venda, entrega ou Pix reais.** A aplicação bloqueia acesso por host público e qualquer `APP_MODE` diferente de `local-demo`. Não foi feito deploy em Cloudflare nem publicação em produção.
+**Somente dados sintéticos. Sem venda, entrega ou Pix reais.** O modo local continua limitado ao loopback. A homologação externa exige banco D1 real, HTTPS, host autorizado e autenticação Cloudflare Access validada por assinatura JWT. Veja o [guia de hospedagem protegida](docs/HOSPEDAGEM_CLOUDFLARE.md). A preparação foi validada localmente; a configuração da sua conta e a publicação remota são etapas separadas.
 
 Veja o [guia de atualização, Windows e novas funções](docs/ATUALIZACAO_CATALOGO.md). Inclui categorias, combos, indisponibilidade, fotos, banner, fontes, paletas e entregador próprio.
 

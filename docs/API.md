@@ -1,6 +1,6 @@
 # API P1
 
-Prefixo `/api/v1`. Respostas JSON, `Cache-Control: no-store`. Todos os endpoints exigem host loopback e `APP_MODE=local-demo`. Mutações exigem `Origin` igual à origem da requisição; bodies em JSON. Rotas de painel usam a loja da sessão, sem parâmetro de tenant confiado ao cliente.
+Prefixo `/api/v1`. Respostas JSON, `Cache-Control: no-store`. No modo local, os endpoints exigem host loopback e `APP_MODE=local-demo`. Em homologação, exigem `APP_MODE=staging-demo`, HTTPS, o host autorizado e um JWT Cloudflare Access válido, conforme o [guia de hospedagem](HOSPEDAGEM_CLOUDFLARE.md). Mutações exigem `Origin` igual à origem da requisição; bodies em JSON. Rotas de painel usam a loja da sessão, sem parâmetro de tenant confiado ao cliente.
 
 | Método    | Caminho                                   | Autorização/função                                     |
 | --------- | ----------------------------------------- | ------------------------------------------------------ |

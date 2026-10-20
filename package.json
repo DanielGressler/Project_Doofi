@@ -17,7 +17,12 @@
     "db:migrate": "node scripts/run.mjs wrangler d1 migrations apply doofi-local --local",
     "db:seed": "node scripts/run.mjs wrangler d1 execute doofi-local --local --file db/seed.sql",
     "preview": "node scripts/run.mjs wrangler dev --config dist/server/wrangler.json --persist-to .wrangler/state --log-level warn",
-    "db:verify-restore": "node scripts/verify-restore.mjs"
+    "db:verify-restore": "node scripts/verify-restore.mjs",
+    "build:staging": "node scripts/staging.mjs build",
+    "deploy:staging": "node scripts/staging.mjs deploy",
+    "db:migrate:staging": "node scripts/staging.mjs migrate",
+    "db:seed:staging": "node scripts/staging.mjs seed",
+    "cloudflare:login": "node scripts/run.mjs wrangler login"
   },
   "dependencies": {
     "@astrojs/cloudflare": "14.4.1",
@@ -25,6 +30,7 @@
     "@fontsource-variable/fraunces": "5.3.0",
     "astro": "7.4.1",
     "fast-png": "6.2.0",
+    "jose": "6.2.13",
     "jpeg-js": "0.4.4"
   },
   "devDependencies": {

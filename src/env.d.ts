@@ -7,6 +7,9 @@ declare namespace Cloudflare {
   interface Env {
     DB: D1Database;
     APP_MODE: string;
+    DOOFI_DEMO_HOST?: string;
+    CF_ACCESS_TEAM_DOMAIN?: string;
+    CF_ACCESS_AUD?: string;
     TEST_MIGRATIONS: import("@cloudflare/vitest-plugin").D1Migration[];
   }
 }

@@ -1,5 +1,7 @@
 # Operação local e preparação de homologação
 
+Para publicação externa, use o [guia de hospedagem protegida](HOSPEDAGEM_CLOUDFLARE.md). Os comandos locais abaixo continuam separados do D1 remoto.
+
 ## Retomada em uma tarefa
 
 Use o checkout existente `/workspace/Project_Doofi`. Cada tarefa já tem isolamento próprio; não crie worktree para configurar este projeto sem pedido explícito. Leia o README e as mudanças locais antes de instalar ou editar.
