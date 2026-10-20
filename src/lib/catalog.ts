@@ -1,6 +1,6 @@
 import { AppError, audit, integer, textField } from "./core";
 import type { Product, Session, Store } from "./types";
-import { palettes, fonts } from "./appearance";
+import { palettes, fonts, layouts } from "./appearance";
 
 export async function getStore(db: D1Database, slug: string) {
   const store = await db
@@ -291,13 +291,19 @@ export async function saveStore(
       : input.has_own_delivery;
   const palette = input.palette ?? current.palette;
   const font = input.font ?? current.font;
+  const layout = input.layout ?? current.layout;
   if (
     typeof palette !== "string" ||
     !Object.hasOwn(palettes, palette) ||
     typeof font !== "string" ||
-    !Object.hasOwn(fonts, font)
+    !Object.hasOwn(fonts, font) ||
+    typeof layout !== "string" ||
+    !Object.hasOwn(layouts, layout)
   )
-    throw new AppError(422, "Escolha uma paleta e uma fonte disponíveis.");
+    throw new AppError(
+      422,
+      "Escolha uma paleta, uma fonte e um layout disponíveis.",
+    );
   const bannerId =
     input.banner_id === undefined ? current.banner_id : input.banner_id;
   await validateMedia(db, session.store_id, bannerId, "banner");
@@ -306,7 +312,7 @@ export async function saveStore(
   const result = await db.batch([
     db
       .prepare(
-        "UPDATE stores SET title=?,description=?,contact=?,hours=?,pickup_address=?,neighborhoods=?,delivery_fee=?,is_open=?,has_own_delivery=?,palette=?,font=?,banner_id=?,version=version+1 WHERE id=? AND version=?",
+        "UPDATE stores SET title=?,description=?,contact=?,hours=?,pickup_address=?,neighborhoods=?,delivery_fee=?,is_open=?,has_own_delivery=?,palette=?,font=?,banner_id=?,layout=?,version=version+1 WHERE id=? AND version=?",
       )
       .bind(
         title,
@@ -321,12 +327,16 @@ export async function saveStore(
         palette,
         font,
         bannerId,
+        layout,
         session.store_id,
         version,
       ),
     conditionalAudit(db, session, "STORE_UPDATED", session.store_id, {
       delivery_fee: fee,
       is_open: input.is_open,
+      palette,
+      font,
+      layout,
     }),
   ]);
   if (!result[0].meta.changes)

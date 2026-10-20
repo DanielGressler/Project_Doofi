@@ -18,6 +18,7 @@ import type {
   Payment,
   Quote,
   Session,
+  Store,
 } from "./types";
 
 export async function issueIntent(db: D1Database, slug: string) {
@@ -334,9 +335,22 @@ export async function publicStatus(db: D1Database, token: string) {
   const order = await publicOrder(db, token);
   const detail = await orderDetails(db, order);
   const store = await db
-    .prepare("SELECT title,slug,contact,pickup_address FROM stores WHERE id=?")
+    .prepare(
+      "SELECT title,slug,contact,pickup_address,palette,font,layout FROM stores WHERE id=?",
+    )
     .bind(order.store_id)
-    .first();
+    .first<
+      Pick<
+        Store,
+        | "title"
+        | "slug"
+        | "contact"
+        | "pickup_address"
+        | "palette"
+        | "font"
+        | "layout"
+      >
+    >();
   const events = (
     await db
       .prepare(

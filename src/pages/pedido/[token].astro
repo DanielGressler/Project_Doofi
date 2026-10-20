@@ -16,6 +16,7 @@ try {
 
 <Layout
   title={order ? `Acompanhar ${order.protocol}` : "Pedido não encontrado"}
+  appearance={order?.store ?? undefined}
 >
   <div class="wrap page-wrap">
     {order ? (

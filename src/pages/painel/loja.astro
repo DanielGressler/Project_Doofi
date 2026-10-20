@@ -2,7 +2,12 @@
 import PanelLayout from "../../layouts/PanelLayout.astro";
 import { env } from "cloudflare:workers";
 import type { Store } from "../../lib/types";
-import { palettes, fonts } from "../../lib/appearance";
+import {
+  palettes,
+  fonts,
+  layouts,
+  appearanceStyles,
+} from "../../lib/appearance";
 const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
   .bind(Astro.locals.session!.store_id)
   .first<Store>())!;
@@ -118,7 +123,10 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
     </div>
     <fieldset class="appearance-editor">
       <legend>Personalização da loja</legend>
-      <p>Escolha um visual pronto. Não precisa saber design ou programação.</p>
+      <p>
+        Personalize a página inteira: cabeçalho, banner, filtros, produtos,
+        carrinho e rodapé. O mesmo visual acompanha o checkout e o pedido.
+      </p>
       <div class="form-grid">
         <label class="field">
           <span>Paleta de cores</span>
@@ -140,10 +148,57 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
             ))}
           </select>
         </label>
-        <div class="full appearance-preview" id="appearance-preview">
-          <h2>Sua loja, do seu jeito</h2>
-          <p>Veja como ficam a fonte e as cores.</p>
-          <span class="preview-button">Fazer um pedido</span>
+        <label class="field full">
+          <span>Layout da página</span>
+          <select name="layout" aria-label="Layout da página">
+            {Object.entries(layouts).map(([key, value]) => (
+              <option value={key} selected={store.layout === key}>
+                {value.label} — {value.description}
+              </option>
+            ))}
+          </select>
+          <small>
+            O layout muda a apresentação da loja inteira. Cores e fontes podem
+            ser escolhidas separadamente.
+          </small>
+        </label>
+        <div
+          class="full appearance-preview store-theme"
+          id="appearance-preview"
+          data-layout={store.layout}
+          style={appearanceStyles(store)}
+          aria-label="Prévia da página da loja"
+        >
+          <div class="appearance-preview-header">
+            <strong>{store.title}</strong>
+            <span>Seu pedido</span>
+          </div>
+          <div class="appearance-preview-hero">
+            <h2>Sua loja, do seu jeito</h2>
+            <p>Banner, cores e fontes em toda a página.</p>
+            <span class="preview-button">Conheça o cardápio</span>
+          </div>
+          <div class="appearance-preview-layout">
+            <div class="appearance-preview-products">
+              <div class="appearance-preview-card">
+                <h3>Produto da casa</h3>
+                <p>Descrição com a fonte escolhida.</p>
+                <strong>R$ 24,00</strong>
+              </div>
+              <div class="appearance-preview-card">
+                <h3>Combo especial</h3>
+                <p>Seu cardápio organizado.</p>
+                <strong>R$ 29,00</strong>
+              </div>
+            </div>
+            <div class="appearance-preview-card">
+              <h3>Seu pedido</h3>
+              <p>O carrinho também segue seu visual.</p>
+            </div>
+          </div>
+          <div class="appearance-preview-footer">
+            Contato e informações da loja
+          </div>
         </div>
         <label class="field full">
           <span>Banner da loja (opcional)</span>
@@ -183,7 +238,8 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
 <script>
   import { $, api, busy, feedback } from "../../scripts/browser";
   import { upload } from "../../scripts/uploads";
-  import { palettes, fonts } from "../../lib/appearance";
+  import { appearanceStyles } from "../../lib/appearance";
+  import type { StoreAppearance } from "../../lib/types";
   const form = $<HTMLFormElement>("#store-form");
   const own = $<HTMLInputElement>('[name="has_own_delivery"]', form),
     fee = $<HTMLInputElement>('[name="delivery_fee"]', form);
@@ -195,20 +251,15 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
   own.addEventListener("change", deliveryChanged);
   deliveryChanged();
   function preview() {
-    const palette =
-      palettes[
-        $<HTMLSelectElement>('[name="palette"]', form)
-          .value as keyof typeof palettes
-      ];
-    const font =
-      fonts[
-        $<HTMLSelectElement>('[name="font"]', form).value as keyof typeof fonts
-      ];
+    const palette = $<HTMLSelectElement>('[name="palette"]', form)
+      .value as StoreAppearance["palette"];
+    const font = $<HTMLSelectElement>('[name="font"]', form)
+      .value as StoreAppearance["font"];
+    const layout = $<HTMLSelectElement>('[name="layout"]', form)
+      .value as StoreAppearance["layout"];
     const sample = $("#appearance-preview");
-    sample.style.setProperty("--accent", palette.accent);
-    sample.style.setProperty("--serif", font.heading);
-    sample.style.fontFamily = font.body;
-    sample.style.backgroundColor = palette.background;
+    sample.style.cssText = appearanceStyles({ palette, font, layout });
+    sample.dataset.layout = layout;
   }
   form.addEventListener("change", preview);
   preview();

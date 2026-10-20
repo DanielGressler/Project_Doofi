@@ -1,33 +1,34 @@
 ---
 import "../styles/global.css";
+import "../styles/store-theme.css";
 import Icon from "../components/Icon.astro";
-import { palettes, fonts } from "../lib/appearance";
-import type { Store } from "../lib/types";
+import { palettes, appearanceStyles } from "../lib/appearance";
+import type { StoreAppearance } from "../lib/types";
 interface Props {
   title: string;
   panel?: boolean;
   slug?: string;
-  appearance?: Store;
+  appearance?: StoreAppearance;
 }
 const { title, panel = false, slug, appearance } = Astro.props;
-const colors = palettes[appearance?.palette ?? "terracotta"],
-  type = fonts[appearance?.font ?? "editorial"];
+const colors = palettes[appearance?.palette ?? "terracotta"];
 ---
 
 <!doctype html>
 <html
   lang="pt-BR"
-  style={
-    appearance
-      ? `--accent:${colors.accent};--accent-dark:${colors.dark};--paper:${colors.paper};background:${colors.background};--serif:${type.heading};font-family:${type.body}`
-      : undefined
-  }
+  class:list={{ "store-theme": !!appearance }}
+  data-layout={appearance?.layout ?? undefined}
+  style={appearance ? appearanceStyles(appearance) : undefined}
 >
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="robots" content="noindex,nofollow" />
-    <meta name="theme-color" content="#f9f7f2" />
+    <meta
+      name="theme-color"
+      content={appearance ? colors.background : "#f9f7f2"}
+    />
     <title>{title} · Doofi</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>

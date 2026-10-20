@@ -301,3 +301,36 @@ it("upload valida autenticação, conteúdo e propriedade antes de associar a fo
     ),
   ).rejects.toMatchObject({ status: 422 });
 });
+
+it("layout é validado no backend e acompanha o pedido sem alterar outra loja", async () => {
+  const store = await getStore(env.DB, "casa-do-forno");
+  await expect(
+    saveStore(env.DB, owner, {
+      ...store,
+      is_open: true,
+      has_own_delivery: !!store.has_own_delivery,
+      layout: "arbitrary-layout",
+    }),
+  ).rejects.toMatchObject({ status: 422 });
+  await saveStore(env.DB, owner, {
+    ...store,
+    is_open: true,
+    has_own_delivery: !!store.has_own_delivery,
+    layout: "showcase",
+    font: "classic",
+    palette: "plum",
+  });
+  expect((await getStore(env.DB, "casa-do-forno")).layout).toBe("showcase");
+  expect((await getStore(env.DB, "verde-mesa")).layout).toBe("cozy");
+  const order = await createOrder(
+    env.DB,
+    "casa-do-forno",
+    await input("a-pao"),
+  );
+  const { publicStatus } = await import("../src/lib/orders");
+  expect((await publicStatus(env.DB, order.token)).store).toMatchObject({
+    layout: "showcase",
+    font: "classic",
+    palette: "plum",
+  });
+});

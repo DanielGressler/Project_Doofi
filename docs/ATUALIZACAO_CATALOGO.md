@@ -66,3 +66,17 @@ Possui entregador próprio controla o campo de taxa fixa em Minha loja e a opç�
 5. Em Minha loja, altere fonte, paleta e banner. Confira vitrine e checkout.
 6. Desmarque o entregador próprio, salve e confira que a taxa fixa desaparece. Reative e confira novamente.
 7. Entre na outra loja e confira que catálogo, imagens e configurações continuam separados.
+
+## Personalização da página inteira
+
+A personalização agora abrange toda a página do comprador: cabeçalho, banner, títulos e textos, filtros de categoria, produtos e combos, botões, carrinho, campos de formulário e rodapé. O checkout e o acompanhamento do pedido usam a mesma aparência salva da loja. As imagens ilustrativas e fotos mantêm suas próprias cores; estados de erro e de disponibilidade continuam semanticamente identificáveis.
+
+Em Minha loja, escolha separadamente:
+
+- **Layout da página:** Acolhedor (cartões arredondados e espaços confortáveis), Compacto (cartões e espaços menores) ou Vitrine (banner centralizado e produtos em destaque).
+- **Estilo das fontes:** Acolhedora, Moderna ou Clássica. A escolha afeta os títulos e os textos da página inteira, incluindo navegação, carrinho e formulários.
+- **Paleta de cores:** aplicada a fundos, textos, bordas, filtros e botões.
+
+A prévia mostra cabeçalho, banner, cartões, carrinho e rodapé. Ela reflete as escolhas antes de salvar. Clique em Salvar configurações para aplicar à página pública e recarregue as abas da loja que já estavam abertas.
+
+Antes de iniciar esta atualização, execute `npm run db:migrate` com o servidor parado. A migração `0003_layout_loja.sql` adiciona o layout Acolhedor como padrão, preservando as cores e fontes já escolhidas, os produtos e os pedidos.

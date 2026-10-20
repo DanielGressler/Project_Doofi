@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import jpeg from "jpeg-js";
+import { verifyGlobalTheme } from "./store-theme";
 
 async function login(page: import("@playwright/test").Page) {
   await page.goto("/painel/entrar");
@@ -122,6 +123,7 @@ test("personalização e taxa fixa condicionada a entregador próprio", async ({
   page,
   browser,
 }) => {
+  test.setTimeout(120000);
   await login(page);
   await page.goto("/painel/loja");
   await page.getByLabel("Possui entregador próprio", { exact: true }).uncheck();
@@ -168,4 +170,5 @@ test("personalização e taxa fixa condicionada a entregador próprio", async ({
   await shop.reload();
   await expect(shop.locator('input[value="FIXED"]')).toHaveCount(1);
   await context.close();
+  await verifyGlobalTheme(page, browser);
 });

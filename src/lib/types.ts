@@ -15,8 +15,10 @@ export interface Store {
   has_own_delivery: number;
   palette: "terracotta" | "forest" | "ocean" | "plum";
   font: "editorial" | "simple" | "classic";
+  layout: "cozy" | "compact" | "showcase";
   banner_id: string | null;
 }
+export type StoreAppearance = Pick<Store, "palette" | "font" | "layout">;
 export interface Product {
   id: string;
   store_id: string;
