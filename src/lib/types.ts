@@ -32,7 +32,12 @@ export interface Product {
   image_id: string | null;
   is_combo: number;
   orderable: number;
-  components: { id: string; title: string; available: number }[];
+  components: {
+    id: string;
+    title: string;
+    available: number;
+    version: number;
+  }[];
 }
 export interface Session {
   user_id: string;
@@ -41,6 +46,10 @@ export interface Session {
   csrf_token: string;
   token_hash: string;
   email: string;
+}
+export interface AuthenticatedSession extends Session {
+  store_title: string;
+  store_slug: string;
 }
 export type OrderStatus =
   | "PENDING"

@@ -6,6 +6,35 @@ import { handleApi } from "../src/lib/api";
 
 let sequence = 0;
 afterEach(() => vi.restoreAllMocks());
+it("middleware e API reutilizam a verificação da mesma requisição sem autorizar outro token ou aplicação", async () => {
+  const fixture = await accessFixture();
+  const token = await fixture.sign();
+  const request = fixture.request(token);
+  const verify = vi.spyOn(crypto.subtle, "verify");
+  expect(
+    await Promise.all(
+      Array.from({ length: 8 }, () =>
+        demoAllowed(request, "staging-demo", fixture.config),
+      ),
+    ),
+  ).toEqual(Array(8).fill(true));
+  expect(verify).toHaveBeenCalledTimes(1);
+  expect(
+    await demoAllowed(fixture.request(token), "staging-demo", fixture.config),
+  ).toBe(true);
+  expect(verify).toHaveBeenCalledTimes(2);
+  request.headers.set("cf-access-jwt-assertion", "forged-token");
+  expect(await demoAllowed(request, "staging-demo", fixture.config)).toBe(
+    false,
+  );
+  request.headers.set("cf-access-jwt-assertion", token);
+  expect(
+    await demoAllowed(request, "staging-demo", {
+      ...fixture.config,
+      CF_ACCESS_AUD: "different-app",
+    }),
+  ).toBe(false);
+});
 async function accessFixture() {
   const pair = await generateKeyPair("RS256", { modulusLength: 2048 });
   const jwk = {

@@ -9,6 +9,7 @@ import {
   randomToken,
   same,
   textField,
+  versionField,
 } from "./core";
 import { conditionalAudit, getStore, getProducts } from "./catalog";
 import type {
@@ -171,20 +172,27 @@ export async function createOrder(
       422,
       "Este bairro não é atendido pela loja. Escolha retirada ou um bairro disponível.",
     );
-  const products = (await getProducts(db, store.id)).filter((p) => p.orderable);
-  const items = normalized.items.map((i) => {
-    const p = products.find((p) => p.id === i.productId);
-    if (!p)
+  const products = await getProducts(
+    db,
+    store.id,
+    normalized.items.map((item) => item.productId),
+  );
+  const productsById = new Map(
+    products.map((product) => [product.id, product]),
+  );
+  const items = normalized.items.map((cartItem) => {
+    const product = productsById.get(cartItem.productId);
+    if (!product?.orderable)
       throw new AppError(
         422,
         "Um produto está indisponível ou pertence a outra loja. Revise o carrinho.",
       );
     return {
-      ...i,
-      price: p.price,
-      title: p.is_combo
-        ? `${p.title} (${p.components.map((c) => c.title).join(" + ")})`
-        : p.title,
+      ...cartItem,
+      price: product.price,
+      title: product.is_combo
+        ? `${product.title} (${product.components.map((component) => component.title).join(" + ")})`
+        : product.title,
     };
   });
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
@@ -203,12 +211,28 @@ export async function createOrder(
   const protocol = "DF-" + id.replace(/-/g, "").slice(0, 10).toUpperCase();
   const timestamp = now();
   const correlationId = crypto.randomUUID();
+  const snapshotProducts = new Map(
+    products.flatMap((product) => [
+      [product.id, product.version] as const,
+      ...product.components.map(
+        (component) => [component.id, component.version] as const,
+      ),
+    ]),
+  );
+  // Verify the snapshots inside the same transaction that creates the order.
   try {
     const writes = await db.batch([
       db
         .prepare(
           `INSERT INTO orders (id,store_id,protocol,public_token_hash,token_expires_at,intent_hash,request_hash,status,fulfillment,subtotal,delivery_fee,total,customer_name,customer_contact,address,neighborhood,postal_code,note,created_at,updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+        WHERE EXISTS(SELECT 1 FROM stores WHERE id=? AND version=? AND active=1 AND is_open=1)
+          AND EXISTS(SELECT 1 FROM checkout_intents WHERE key_hash=? AND store_id=? AND expires_at>unixepoch())
+          AND NOT EXISTS(
+            SELECT 1 FROM json_each(?) snapshot
+            LEFT JOIN products product ON product.id=json_extract(snapshot.value,'$[0]') AND product.store_id=?
+            WHERE product.id IS NULL OR product.version<>json_extract(snapshot.value,'$[1]') OR product.available<>1
+          )`,
         )
         .bind(
           id,
@@ -231,10 +255,27 @@ export async function createOrder(
           normalized.note,
           timestamp,
           timestamp,
+          store.id,
+          store.version,
+          intentHash,
+          store.id,
+          JSON.stringify([...snapshotProducts]),
+          store.id,
         ),
+      conditionalAudit(
+        db,
+        { store_id: store.id, user_id: "guest" },
+        "ORDER_CREATED",
+        id,
+        { status, subtotal, fulfillment: normalized.fulfillment },
+        crypto.randomUUID(),
+        correlationId,
+      ),
       ...items.map((i) =>
         db
-          .prepare("INSERT INTO order_items VALUES (?,?,?,?,?,?,?)")
+          .prepare(
+            "INSERT INTO order_items SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM orders WHERE id=?)",
+          )
           .bind(
             crypto.randomUUID(),
             id,
@@ -243,23 +284,24 @@ export async function createOrder(
             i.title,
             i.price,
             i.quantity,
+            id,
           ),
       ),
       db
         .prepare(
-          "INSERT INTO payment_records (order_id,store_id,method,updated_at) VALUES (?,?,?,?)",
+          "INSERT INTO payment_records (order_id,store_id,method,updated_at) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM orders WHERE id=?)",
         )
-        .bind(id, store.id, normalized.payment, timestamp),
-      audit(
-        db,
-        store.id,
-        "guest",
-        "ORDER_CREATED",
-        id,
-        { status, subtotal, fulfillment: normalized.fulfillment },
-        correlationId,
-      ),
+        .bind(id, store.id, normalized.payment, timestamp, id),
     ]);
+    if (!writes[0].meta.changes) {
+      const concurrentReplay = await replay();
+      if (concurrentReplay) return concurrentReplay;
+      throw new AppError(
+        409,
+        "A loja, o catálogo ou o checkout mudou durante o envio. Revise o carrinho e tente novamente.",
+        "CATALOG_CHANGED",
+      );
+    }
     console.info(
       JSON.stringify({
         event: "ORDER_CREATED_SYNTHETIC",
@@ -270,6 +312,7 @@ export async function createOrder(
       }),
     );
   } catch (error) {
+    if (error instanceof AppError) throw error;
     // The unique constraint, rather than the preceding read, arbitrates concurrent retries.
     const result = await replay();
     if (result) return result;
@@ -296,27 +339,43 @@ export async function ownedOrder(db: D1Database, session: Session, id: string) {
   return order;
 }
 export async function orderDetails(db: D1Database, order: Order) {
-  const [items, quote, payment] = await Promise.all([
+  const [items, quotes, payments] = await db.batch([
     db
       .prepare(
         "SELECT product_id,title,price,quantity FROM order_items WHERE order_id=? AND store_id=?",
       )
-      .bind(order.id, order.store_id)
-      .all<OrderItem>(),
+      .bind(order.id, order.store_id),
     db
       .prepare(
         "SELECT * FROM delivery_quotes WHERE order_id=? AND store_id=? AND version=?",
       )
-      .bind(order.id, order.store_id, order.quote_version)
-      .first<Quote>(),
+      .bind(order.id, order.store_id, order.quote_version),
     db
       .prepare(
         "SELECT method,status FROM payment_records WHERE order_id=? AND store_id=?",
       )
-      .bind(order.id, order.store_id)
-      .first<Payment>(),
+      .bind(order.id, order.store_id),
   ]);
-  return { items: items.results, quote, payment: payment! };
+  return {
+    items: items.results as OrderItem[],
+    quote: (quotes.results[0] as Quote | undefined) ?? null,
+    payment: payments.results[0] as Payment,
+  };
+}
+async function paymentForOrder(db: D1Database, order: Order) {
+  const payment = await db
+    .prepare(
+      "SELECT method,status FROM payment_records WHERE order_id=? AND store_id=?",
+    )
+    .bind(order.id, order.store_id)
+    .first<Payment>();
+  if (!payment)
+    throw new AppError(
+      500,
+      "Registro de pagamento indisponível.",
+      "PAYMENT_MISSING",
+    );
+  return payment;
 }
 export async function publicOrder(db: D1Database, token: string) {
   if (!/^[a-f0-9]{64}$/.test(token))
@@ -332,47 +391,69 @@ export async function publicOrder(db: D1Database, token: string) {
   return order;
 }
 export async function publicStatus(db: D1Database, token: string) {
-  const order = await publicOrder(db, token);
-  const detail = await orderDetails(db, order);
-  const store = await db
-    .prepare(
-      "SELECT title,slug,contact,pickup_address,palette,font,layout FROM stores WHERE id=?",
-    )
-    .bind(order.store_id)
-    .first<
-      Pick<
-        Store,
-        | "title"
-        | "slug"
-        | "contact"
-        | "pickup_address"
-        | "palette"
-        | "font"
-        | "layout"
-      >
-    >();
+  if (!/^[a-f0-9]{64}$/.test(token))
+    throw new AppError(404, "Pedido não encontrado ou link expirado.");
+  const tokenHash = await hash(token);
+  const timestamp = now();
+  const visibleOrder =
+    "o.public_token_hash=? AND o.token_revoked=0 AND o.token_expires_at>?";
+  // A single transactional snapshot prevents mixing old status with new payment/events.
+  const [orders, items, quotes, payments, stores, auditRows, keys] =
+    await db.batch([
+      db
+        .prepare(`SELECT o.* FROM orders o WHERE ${visibleOrder}`)
+        .bind(tokenHash, timestamp),
+      db
+        .prepare(
+          `SELECT i.product_id,i.title,i.price,i.quantity FROM order_items i
+      JOIN orders o ON o.id=i.order_id AND o.store_id=i.store_id WHERE ${visibleOrder}`,
+        )
+        .bind(tokenHash, timestamp),
+      db
+        .prepare(
+          `SELECT q.* FROM delivery_quotes q JOIN orders o
+      ON o.id=q.order_id AND o.store_id=q.store_id AND o.quote_version=q.version WHERE ${visibleOrder}`,
+        )
+        .bind(tokenHash, timestamp),
+      db
+        .prepare(
+          `SELECT p.method,p.status FROM payment_records p JOIN orders o
+      ON o.id=p.order_id AND o.store_id=p.store_id WHERE ${visibleOrder}`,
+        )
+        .bind(tokenHash, timestamp),
+      db
+        .prepare(
+          `SELECT s.title,s.slug,s.contact,s.pickup_address,s.palette,s.font,s.layout FROM stores s
+      JOIN orders o ON o.store_id=s.id WHERE ${visibleOrder}`,
+        )
+        .bind(tokenHash, timestamp),
+      db
+        .prepare(
+          `SELECT a.action,a.created_at,a.metadata FROM audit_events a
+      JOIN orders o ON o.id=a.entity_id AND o.store_id=a.store_id WHERE ${visibleOrder}
+      AND a.action IN ('ORDER_CREATED','ORDER_TRANSITION','QUOTE_PROPOSED','QUOTE_ACCEPTED','QUOTE_REJECTED','PAYMENT_DECLARED','PAYMENT_LATE','PAYMENT_SIMULATED_CONFIRMED')
+      ORDER BY a.created_at DESC,a.rowid DESC LIMIT 100`,
+        )
+        .bind(tokenHash, timestamp),
+      db.prepare("SELECT value FROM app_keys WHERE name='tracking_hmac'"),
+    ]);
+  const order = orders.results[0] as Order | undefined;
+  if (!order)
+    throw new AppError(404, "Pedido não encontrado ou link expirado.");
+  const quote = quotes.results[0] as Quote | undefined;
   const events = (
-    await db
-      .prepare(
-        "SELECT action,created_at,metadata FROM audit_events WHERE entity_id=? AND store_id=? AND action IN ('ORDER_CREATED','ORDER_TRANSITION','QUOTE_PROPOSED','QUOTE_ACCEPTED','QUOTE_REJECTED','PAYMENT_DECLARED','PAYMENT_LATE','PAYMENT_SIMULATED_CONFIRMED') ORDER BY created_at,rowid",
-      )
-      .bind(order.id, order.store_id)
-      .all<{ action: string; created_at: number; metadata: string }>()
-  ).results.map((e) => ({
-    action: e.action,
-    created_at: e.created_at,
-    status: JSON.parse(e.metadata).status,
-  }));
-  const { quote } = detail;
-  const safeQuote = quote
-    ? {
-        version: quote.version,
-        fee: quote.fee,
-        estimate: quote.estimate,
-        expires_at: quote.expires_at,
-        accepted_at: quote.accepted_at,
-      }
-    : null;
+    auditRows.results as {
+      action: string;
+      created_at: number;
+      metadata: string;
+    }[]
+  )
+    .reverse()
+    .map((event) => ({
+      action: event.action,
+      created_at: event.created_at,
+      status: JSON.parse(event.metadata).status,
+    }));
   return {
     protocol: order.protocol,
     status: order.status,
@@ -382,12 +463,32 @@ export async function publicStatus(db: D1Database, token: string) {
     total: order.total,
     version: order.version,
     created_at: order.created_at,
-    items: detail.items,
-    payment: detail.payment,
-    quote: safeQuote,
-    store,
+    items: items.results as OrderItem[],
+    payment: payments.results[0] as Payment,
+    quote: quote
+      ? {
+          version: quote.version,
+          fee: quote.fee,
+          estimate: quote.estimate,
+          expires_at: quote.expires_at,
+          accepted_at: quote.accepted_at,
+        }
+      : null,
+    store: stores.results[0] as Pick<
+      Store,
+      | "title"
+      | "slug"
+      | "contact"
+      | "pickup_address"
+      | "palette"
+      | "font"
+      | "layout"
+    >,
     events,
-    actionNonce: await actionNonce(db, token),
+    actionNonce: await hmac(
+      (keys.results[0] as { value: string }).value,
+      `customer-action:${token}`,
+    ),
   };
 }
 export const transitions: Record<string, OrderStatus[]> = {
@@ -407,7 +508,7 @@ export async function transition(
   input: Record<string, unknown>,
 ) {
   const order = await ownedOrder(db, session, id);
-  const version = integer(input.version, "Versão");
+  const version = versionField(input.version);
   const target = textField(input.status, "Status", 2, 32) as OrderStatus;
   if (order.version !== version)
     throw new AppError(409, "O pedido foi atualizado. Recarregue os dados.");
@@ -450,7 +551,7 @@ export async function proposeQuote(
   input: Record<string, unknown>,
 ) {
   const order = await ownedOrder(db, session, id);
-  const version = integer(input.version, "Versão");
+  const version = versionField(input.version);
   if (
     version !== order.version ||
     order.fulfillment !== "QUOTE" ||
@@ -518,7 +619,7 @@ export async function customerAction(
       403,
       "Solicitação inválida. Atualize a página do pedido.",
     );
-  const version = integer(input.version, "Versão");
+  const version = versionField(input.version);
   if (order.version !== version)
     throw new AppError(
       409,
@@ -547,7 +648,9 @@ export async function customerAction(
     const result = await db.batch([
       db
         .prepare(
-          "UPDATE orders SET status=?,delivery_fee=?,total=?,version=version+1,updated_at=? WHERE id=? AND version=?",
+          `UPDATE orders SET status=?,delivery_fee=?,total=?,version=version+1,updated_at=?
+          WHERE id=? AND version=? AND token_revoked=0 AND token_expires_at>unixepoch()
+            AND EXISTS(SELECT 1 FROM delivery_quotes WHERE order_id=orders.id AND store_id=orders.store_id AND version=orders.quote_version AND expires_at>unixepoch())`,
         )
         .bind(
           status,
@@ -576,8 +679,8 @@ export async function customerAction(
   }
   if (action !== "declare-payment")
     throw new AppError(404, "Ação não encontrada.");
-  const detail = await orderDetails(db, order);
-  if (detail.payment.method !== "PIX_SIMULATED")
+  const payment = await paymentForOrder(db, order);
+  if (payment.method !== "PIX_SIMULATED")
     throw new AppError(
       409,
       "Este pedido usa pagamento simulado na retirada ou entrega.",
@@ -598,12 +701,12 @@ export async function customerAction(
       409,
       "A simulação aguarda total definido e aceite do lojista.",
     );
-  if (detail.payment.status !== "SIMULATED_NOT_COLLECTED")
+  if (payment.status !== "SIMULATED_NOT_COLLECTED")
     throw new AppError(409, "A declaração já foi registrada.");
   const result = await db.batch([
     db
       .prepare(
-        "UPDATE orders SET version=version+1,updated_at=? WHERE id=? AND version=?",
+        "UPDATE orders SET version=version+1,updated_at=? WHERE id=? AND version=? AND token_revoked=0 AND token_expires_at>unixepoch()",
       )
       .bind(now(), order.id, version),
     db
@@ -635,8 +738,8 @@ export async function confirmSimulatedPayment(
   input: Record<string, unknown>,
 ) {
   const order = await ownedOrder(db, session, id);
-  const version = integer(input.version, "Versão");
-  const detail = await orderDetails(db, order);
+  const version = versionField(input.version);
+  const payment = await paymentForOrder(db, order);
   if (
     version !== order.version ||
     order.total === null ||
@@ -648,7 +751,7 @@ export async function confirmSimulatedPayment(
       "REJECTED",
       "CANCELLED",
     ].includes(order.status) ||
-    detail.payment.status === "SIMULATED_SELLER_CONFIRMED"
+    payment.status === "SIMULATED_SELLER_CONFIRMED"
   )
     throw new AppError(
       409,

@@ -1,5 +1,7 @@
 import { $, api, el, feedback } from "./browser";
 import { money, statusLabels, formatDate, type Order } from "../lib/types";
+import type { OrderSummary } from "../lib/dashboard";
+import { createPoller } from "./poller";
 type Row = Pick<
   Order,
   | "id"
@@ -61,36 +63,30 @@ function render() {
   }
 }
 async function load() {
-  try {
-    const [orders, summary] = await Promise.all([
-      api<Row[]>("painel/pedidos"),
-      api<{
-        total_orders: number;
-        pending: number;
-        completed: number;
-        average_order: number | null;
-        cancelled: number;
-        topItem: { title: string; units: number } | null;
-      }>("painel/resumo"),
-    ]);
-    rows = orders;
-    $("#stat-total").textContent = String(summary.total_orders);
-    $("#stat-pending").textContent = String(summary.pending);
-    $("#stat-completed").textContent = String(summary.completed);
-    $("#stat-average").textContent =
-      summary.average_order === null ? "—" : money(summary.average_order);
-    $("#extra-stats").textContent =
-      `Recusados ou cancelados: ${summary.cancelled} · Mais pedido: ${summary.topItem ? summary.topItem.title + " (" + summary.topItem.units + " unidades)" : "sem dados"}`;
-    render();
-    feedback("");
-  } catch (e) {
-    feedback((e as Error).message, true);
-  }
+  const { orders, summary } = await api<{
+    orders: Row[];
+    summary: OrderSummary;
+  }>("painel/visao-geral");
+  rows = orders;
+  $("#stat-total").textContent = String(summary.total_orders);
+  $("#stat-pending").textContent = String(summary.pending);
+  $("#stat-completed").textContent = String(summary.completed);
+  $("#stat-average").textContent =
+    summary.average_order === null ? "—" : money(summary.average_order);
+  $("#extra-stats").textContent =
+    `Recusados ou cancelados: ${summary.cancelled} · Mais pedido: ${summary.topItem ? summary.topItem.title + " (" + summary.topItem.units + " unidades)" : "sem dados"}`;
+  render();
+  feedback("");
 }
-$("#refresh-orders").onclick = () => void load();
+const canRefresh = () =>
+  !document.hidden && !$("#order-list").contains(document.activeElement);
+const poller = createPoller(load, {
+  enabled: canRefresh,
+  onError: (error) => feedback((error as Error).message, true),
+});
+$("#refresh-orders").onclick = () => void poller.refresh();
 $("#status-filter").onchange = render;
-void load();
-setInterval(() => {
-  if (!document.hidden && !$("#order-list").contains(document.activeElement))
-    void load();
-}, 20000);
+void poller.refresh();
+document.addEventListener("visibilitychange", () => {
+  if (canRefresh()) void poller.refresh();
+});

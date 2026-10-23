@@ -63,6 +63,80 @@ const photo = () =>
     ).data,
   );
 
+it("disponibilidade contraditória ou booleana malformada não altera o anúncio", async () => {
+  for (const flags of [
+    { available: true, unavailable: true },
+    { available: false, unavailable: false },
+    { available: true, unavailable: "false" },
+  ]) {
+    await expect(
+      saveProduct(env.DB, owner, { ...product, ...flags, version: 0 }, "a-pao"),
+    ).rejects.toMatchObject({ status: 422 });
+  }
+  expect((await getProducts(env.DB, "store-a", ["a-pao"]))[0].version).toBe(0);
+});
+
+it("versão de edição não herda o limite monetário de cem mil centavos", async () => {
+  await env.DB.prepare(
+    "UPDATE products SET version=100001 WHERE id='a-pao'",
+  ).run();
+  await saveProduct(env.DB, owner, { ...product, version: 100001 }, "a-pao");
+  expect((await getProducts(env.DB, "store-a", ["a-pao"]))[0].version).toBe(
+    100002,
+  );
+});
+
+it("upload simultâneo respeita a capacidade de memória e libera a vaga ao terminar", async () => {
+  let stream!: ReadableStreamDefaultController<Uint8Array>;
+  const pending = uploadImage(
+    env.DB,
+    owner,
+    new Request("http://localhost", {
+      method: "POST",
+      headers: { "content-type": "image/jpeg" },
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          stream = controller;
+        },
+      }),
+    }),
+    "product",
+  );
+  await expect(
+    uploadImage(
+      env.DB,
+      owner,
+      new Request("http://localhost", {
+        method: "POST",
+        headers: { "content-type": "image/jpeg" },
+        body: photo(),
+      }),
+      "product",
+    ),
+  ).rejects.toMatchObject({
+    status: 503,
+    code: "IMAGE_CAPACITY",
+    retryAfter: 2,
+  });
+  stream.enqueue(photo());
+  stream.close();
+  expect((await pending).id).toBeTruthy();
+  expect(
+    (
+      await uploadImage(
+        env.DB,
+        owner,
+        new Request("http://localhost", {
+          method: "POST",
+          headers: { "content-type": "image/jpeg" },
+          body: photo(),
+        }),
+        "product",
+      )
+    ).id,
+  ).toBeTruthy();
+});
+
 it("combo reúne dois itens, tem preço próprio e preserva composição no pedido", async () => {
   const { id } = await makeCombo();
   const combo = (await getProducts(env.DB, "store-a")).find(
@@ -225,6 +299,51 @@ it("backend normaliza JPG e PNG, com tamanho padronizado e remoção de metadado
   const banner = await normalizeImage(png, "banner");
   expect([banner.width, banner.height]).toEqual([1600, 600]);
   expect(jpeg.decode(banner.data).height).toBe(600);
+});
+
+it("redimensionamento mantém cores e compõe transparência sobre branco", async () => {
+  const pixels = new Uint8Array(4 * 3 * 4);
+  for (let index = 0; index < pixels.length; index += 4)
+    pixels.set([10, 100, 220, 128], index);
+  const result = await normalizeImage(
+    pngEncode({ width: 4, height: 3, data: pixels, channels: 4, depth: 8 }),
+    "product",
+  );
+  const decoded = jpeg.decode(result.data);
+  const center = (360 * 960 + 480) * 4;
+  for (const [channel, expected] of [132, 177, 237].entries())
+    expect(Math.abs(decoded.data[center + channel] - expected)).toBeLessThan(5);
+});
+
+it("orientação EXIF é aplicada antes do recorte e removida da imagem final", async () => {
+  const pixels = new Uint8Array(16 * 12 * 4);
+  for (let y = 0; y < 12; y++)
+    for (let x = 0; x < 16; x++)
+      pixels.set(
+        x < 8 ? [230, 20, 20, 255] : [20, 20, 230, 255],
+        (y * 16 + x) * 4,
+      );
+  const original = jpeg.encode(
+    { width: 16, height: 12, data: pixels },
+    100,
+  ).data;
+  const exif = new Uint8Array([
+    255, 225, 0, 34, 69, 120, 105, 102, 0, 0, 73, 73, 42, 0, 8, 0, 0, 0, 1, 0,
+    18, 1, 3, 0, 1, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0,
+  ]);
+  const image = new Uint8Array(original.length + exif.length);
+  image.set(original.subarray(0, 2));
+  image.set(exif, 2);
+  image.set(original.subarray(2), 2 + exif.length);
+  const normalized = await normalizeImage(image, "product");
+  const decoded = jpeg.decode(normalized.data);
+  const top = (100 * 960 + 480) * 4,
+    bottom = (620 * 960 + 480) * 4;
+  expect(decoded.data[top]).toBeGreaterThan(200);
+  expect(decoded.data[top + 2]).toBeLessThan(50);
+  expect(decoded.data[bottom]).toBeLessThan(50);
+  expect(decoded.data[bottom + 2]).toBeGreaterThan(200);
+  expect(new TextDecoder().decode(normalized.data)).not.toContain("Exif");
 });
 it("upload valida autenticação, conteúdo e propriedade antes de associar a foto", async () => {
   const bytes = photo();

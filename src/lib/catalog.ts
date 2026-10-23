@@ -1,4 +1,4 @@
-import { AppError, audit, integer, textField } from "./core";
+import { AppError, audit, integer, textField, versionField } from "./core";
 import type { Product, Session, Store } from "./types";
 import { palettes, fonts, layouts } from "./appearance";
 
@@ -10,34 +10,53 @@ export async function getStore(db: D1Database, slug: string) {
   if (!store) throw new AppError(404, "Loja não encontrada.");
   return store;
 }
-export async function getProducts(db: D1Database, storeId: string) {
-  const products = (
-    await db
+export async function getProducts(
+  db: D1Database,
+  storeId: string,
+  productIds?: string[],
+) {
+  if (productIds?.length === 0) return [];
+  const selection = productIds
+    ? ` AND id IN (${productIds.map(() => "?").join(",")})`
+    : "";
+  const componentSelection = productIds
+    ? ` AND c.combo_id IN (${productIds.map(() => "?").join(",")})`
+    : "";
+  // One D1 transaction: products and combo composition belong to the same snapshot.
+  const [productRows, componentRows] = await db.batch([
+    db
       .prepare(
-        "SELECT * FROM products WHERE store_id=? ORDER BY category,title",
+        `SELECT * FROM products WHERE store_id=?${selection} ORDER BY category,title`,
       )
-      .bind(storeId)
-      .all<Product>()
-  ).results;
-  const links = (
-    await db
+      .bind(storeId, ...(productIds ?? [])),
+    db
       .prepare(
-        `SELECT c.combo_id,p.id,p.title,p.available FROM combo_items c
-    JOIN products p ON p.id=c.product_id AND p.store_id=c.store_id WHERE c.store_id=? ORDER BY p.title`,
+        `SELECT c.combo_id,p.id,p.title,p.available,p.version FROM combo_items c
+    JOIN products p ON p.id=c.product_id AND p.store_id=c.store_id WHERE c.store_id=?${componentSelection} ORDER BY p.title`,
       )
-      .bind(storeId)
-      .all<{ combo_id: string; id: string; title: string; available: number }>()
-  ).results;
-  return products.map((p) => {
-    const components = links
-      .filter((c) => c.combo_id === p.id)
-      .map(({ id, title, available }) => ({ id, title, available }));
+      .bind(storeId, ...(productIds ?? [])),
+  ]);
+  const componentsByCombo = new Map<string, Product["components"]>();
+  for (const row of componentRows.results as (Product["components"][number] & {
+    combo_id: string;
+  })[]) {
+    const components = componentsByCombo.get(row.combo_id) ?? [];
+    components.push({
+      id: row.id,
+      title: row.title,
+      available: row.available,
+      version: row.version,
+    });
+    componentsByCombo.set(row.combo_id, components);
+  }
+  return (productRows.results as Product[]).map((product) => {
+    const components = componentsByCombo.get(product.id) ?? [];
     return {
-      ...p,
+      ...product,
       components,
       orderable: Number(
-        !!p.available &&
-          (!p.is_combo ||
+        !!product.available &&
+          (!product.is_combo ||
             (components.length === 2 && components.every((c) => c.available))),
       ),
     };
@@ -66,6 +85,18 @@ export async function saveProduct(
         categoryValue.toLocaleLowerCase("pt-BR"),
     ) ?? categoryValue;
   const price = integer(input.price, "Preço em centavos", 1);
+  if (
+    (input.unavailable !== undefined &&
+      typeof input.unavailable !== "boolean") ||
+    (input.available !== undefined && typeof input.available !== "boolean") ||
+    (typeof input.available === "boolean" &&
+      typeof input.unavailable === "boolean" &&
+      input.available === input.unavailable)
+  )
+    throw new AppError(
+      422,
+      "Informe uma disponibilidade consistente para o produto.",
+    );
   const available =
     typeof input.unavailable === "boolean"
       ? !input.unavailable
@@ -111,20 +142,17 @@ export async function saveProduct(
     )
       throw new AppError(422, "Escolha dois produtos diferentes para o combo.");
     componentIds = input.componentIds as string[];
-    for (const component of componentIds) {
-      if (
-        !(await db
-          .prepare(
-            "SELECT id FROM products WHERE id=? AND store_id=? AND is_combo=0",
-          )
-          .bind(component, session.store_id)
-          .first())
+    const components = await db
+      .prepare(
+        "SELECT id FROM products WHERE id IN (?,?) AND store_id=? AND is_combo=0",
       )
-        throw new AppError(
-          422,
-          "O combo aceita somente produtos individuais desta loja.",
-        );
-    }
+      .bind(...componentIds, session.store_id)
+      .all();
+    if (components.results.length !== 2)
+      throw new AppError(
+        422,
+        "O combo aceita somente produtos individuais desta loja.",
+      );
   }
   const imageId =
     input.image_id === undefined ? (current?.image_id ?? null) : input.image_id;
@@ -145,22 +173,8 @@ export async function saveProduct(
     ),
   ];
   if (id) {
-    const version = integer(input.version, "Versão");
-    const product = await db
-      .prepare("SELECT id FROM products WHERE id=? AND store_id=?")
-      .bind(id, session.store_id)
-      .first();
-    if (!product) {
-      await audit(
-        db,
-        session.store_id,
-        session.user_id,
-        "ACCESS_DENIED",
-        "product",
-      ).run();
-      throw new AppError(404, "Produto não encontrado.");
-    }
-    const r = await db.batch([
+    const version = versionField(input.version);
+    const writes = await db.batch([
       db
         .prepare(
           "UPDATE products SET title=?,description=?,category=?,price=?,available=?,image=?,image_id=?,version=version+1 WHERE id=? AND store_id=? AND version=?",
@@ -191,21 +205,12 @@ export async function saveProduct(
       ),
       ...componentsWrites(),
     ]);
-    if (!r[0].meta.changes)
+    if (!writes[0].meta.changes)
       throw new AppError(
         409,
         "O produto foi alterado. Atualize a página antes de salvar.",
       );
   } else {
-    const count = await db
-      .prepare("SELECT COUNT(*) AS n FROM products WHERE store_id=?")
-      .bind(session.store_id)
-      .first<{ n: number }>();
-    if ((count?.n ?? 0) >= 50)
-      throw new AppError(
-        422,
-        "Limite de 50 produtos por loja nesta demonstração.",
-      );
     const writes = await db.batch([
       db
         .prepare(
@@ -246,6 +251,7 @@ export function conditionalAudit(
   entity: string,
   metadata: object = {},
   eventId = crypto.randomUUID(),
+  correlationId = crypto.randomUUID(),
 ) {
   return db
     .prepare(
@@ -258,7 +264,7 @@ export function conditionalAudit(
       action,
       entity,
       JSON.stringify(metadata),
-      crypto.randomUUID(),
+      correlationId,
     );
 }
 export async function saveStore(
@@ -275,7 +281,7 @@ export async function saveStore(
   const pickup = textField(input.pickup_address, "Endereço fictício", 4, 160);
   const neighborhoods = textField(input.neighborhoods, "Bairros", 2, 300);
   const fee = integer(input.delivery_fee, "Frete em centavos");
-  const version = integer(input.version, "Versão");
+  const version = versionField(input.version);
   const current = (await db
     .prepare("SELECT * FROM stores WHERE id=?")
     .bind(session.store_id)

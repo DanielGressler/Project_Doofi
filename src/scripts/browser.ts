@@ -17,6 +17,7 @@ export class ApiError extends Error {
     message: string,
     public code: string,
     public status: number,
+    public retryAfter?: number,
   ) {
     super(message);
   }
@@ -27,9 +28,8 @@ export async function api<T = Record<string, unknown>>(
   method = "POST",
   csrf?: string,
 ): Promise<T> {
-  const response = await fetch(`/api/v1/${path}`, {
+  return requestJson<T>(path, {
     method: data === undefined ? "GET" : method,
-    credentials: "same-origin",
     headers:
       data === undefined
         ? {}
@@ -39,17 +39,56 @@ export async function api<T = Record<string, unknown>>(
           },
     ...(data === undefined ? {} : { body: JSON.stringify(data) }),
   });
-  const result = (await response.json()) as { error?: string; code: string };
-  if (!response.ok) {
-    if (response.status === 401 && path.startsWith("painel/"))
-      location.assign("/painel/entrar");
+}
+
+export async function requestJson<T>(
+  path: string,
+  options: RequestInit,
+): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(`/api/v1/${path}`, {
+      ...options,
+      signal: controller.signal,
+      credentials: "same-origin",
+    });
+    if (!response.headers.get("content-type")?.includes("application/json"))
+      throw new ApiError(
+        response.status === 403 || response.redirected
+          ? "Seu acesso não foi autorizado. Entre novamente pelo link da demonstração."
+          : "O serviço retornou uma resposta inesperada. Atualize a página e tente novamente.",
+        "INVALID_RESPONSE",
+        response.status,
+      );
+    const result = (await response.json()) as { error?: string; code: string };
+    if (!response.ok) {
+      if (response.status === 401 && path.startsWith("painel/"))
+        location.assign("/painel/entrar");
+      throw new ApiError(
+        result.error ?? "Não foi possível concluir a operação.",
+        result.code,
+        response.status,
+        Number(response.headers.get("retry-after")) || undefined,
+      );
+    }
+    return result as T;
+  } catch (error) {
+    if (controller.signal.aborted)
+      throw new ApiError(
+        "A resposta demorou. Atualize os dados antes de repetir a ação.",
+        "TIMEOUT",
+        0,
+      );
+    if (error instanceof ApiError) throw error;
     throw new ApiError(
-      result.error ?? "Não foi possível concluir a operação.",
-      result.code,
-      response.status,
+      "Não foi possível receber a resposta. Confira sua conexão e tente novamente.",
+      "NETWORK",
+      0,
     );
+  } finally {
+    clearTimeout(timeout);
   }
-  return result as T;
 }
 export function feedback(
   message: string,

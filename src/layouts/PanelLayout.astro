@@ -1,24 +1,19 @@
 ---
 import Layout from "./Layout.astro";
 import Icon from "../components/Icon.astro";
-import { env } from "cloudflare:workers";
-import type { Store } from "../lib/types";
 interface Props {
   title: string;
   active: string;
 }
 const { title, active } = Astro.props;
 const session = Astro.locals.session!;
-const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
-  .bind(session.store_id)
-  .first<Store>())!;
 ---
 
 <Layout title={title} panel>
   <div class="wrap panel-layout" id="panel-app" data-csrf={session.csrf_token}>
     <aside class="panel-nav" aria-label="Menu do lojista">
       <div class="panel-store">
-        <strong>{store.title}</strong>
+        <strong>{session.store_title}</strong>
         <span>LOJISTA · AMBIENTE FICTÍCIO</span>
       </div>
       <a
@@ -45,7 +40,7 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
         <Icon name="store" />
         Minha loja
       </a>
-      <a class="public-store" href={`/loja/${store.slug}`}>
+      <a class="public-store" href={`/loja/${session.store_slug}`}>
         <Icon name="arrow" size={16} />
         Ver loja pública
       </a>

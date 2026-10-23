@@ -118,24 +118,30 @@ export async function normalizeImage(
       }
       const png = decodePng(clean, { checkCrc: true });
       data = new Uint8Array(width * height * 4);
-      for (let i = 0; i < width * height; i++) {
-        const c = png.channels,
-          p = i * c;
-        const color = png.palette?.[Number(png.data[p])];
-        const gray = Number(png.data[p]);
-        data.set(
-          color
-            ? [color[0], color[1], color[2], color[3] ?? 255]
-            : c <= 2
-              ? [gray, gray, gray, c === 2 ? Number(png.data[p + 1]) : 255]
-              : [
-                  Number(png.data[p]),
-                  Number(png.data[p + 1]),
-                  Number(png.data[p + 2]),
-                  c === 4 ? Number(png.data[p + 3]) : 255,
-                ],
-          i * 4,
-        );
+      const channels = png.channels;
+      for (let pixel = 0; pixel < width * height; pixel++) {
+        const source = pixel * channels;
+        const destination = pixel * 4;
+        const color = png.palette?.[Number(png.data[source])];
+        const first = Number(png.data[source]);
+        data[destination] = color ? color[0] : first;
+        data[destination + 1] = color
+          ? color[1]
+          : channels <= 2
+            ? first
+            : Number(png.data[source + 1]);
+        data[destination + 2] = color
+          ? color[2]
+          : channels <= 2
+            ? first
+            : Number(png.data[source + 2]);
+        data[destination + 3] = color
+          ? (color[3] ?? 255)
+          : channels === 2
+            ? Number(png.data[source + 1])
+            : channels === 4
+              ? Number(png.data[source + 3])
+              : 255;
       }
     } else throw invalid();
     if (!width || !height || width * height > MAX_PIXELS) throw invalid();
@@ -149,41 +155,56 @@ export async function normalizeImage(
       targetHeight / orientedHeight,
     );
     const output = new Uint8Array(targetWidth * targetHeight * 4);
-    for (let y = 0; y < targetHeight; y++)
+    const sourceColumns = new Uint32Array(targetWidth);
+    for (let x = 0; x < targetWidth; x++)
+      sourceColumns[x] = Math.min(
+        orientedWidth - 1,
+        Math.max(
+          0,
+          Math.floor((x + (orientedWidth * scale - targetWidth) / 2) / scale),
+        ),
+      );
+    for (let y = 0; y < targetHeight; y++) {
+      const orientedY = Math.min(
+        orientedHeight - 1,
+        Math.max(
+          0,
+          Math.floor((y + (orientedHeight * scale - targetHeight) / 2) / scale),
+        ),
+      );
       for (let x = 0; x < targetWidth; x++) {
-        const ox = Math.min(
-          orientedWidth - 1,
-          Math.max(
-            0,
-            Math.floor((x + (orientedWidth * scale - targetWidth) / 2) / scale),
-          ),
-        );
-        const oy = Math.min(
-          orientedHeight - 1,
-          Math.max(
-            0,
-            Math.floor(
-              (y + (orientedHeight * scale - targetHeight) / 2) / scale,
-            ),
-          ),
-        );
-        const [sx, sy] =
-          rotate === 2
-            ? [width - 1 - ox, oy]
-            : rotate === 3
-              ? [width - 1 - ox, height - 1 - oy]
-              : rotate === 4
-                ? [ox, height - 1 - oy]
-                : rotate === 5
-                  ? [oy, ox]
-                  : rotate === 6
-                    ? [oy, height - 1 - ox]
-                    : rotate === 7
-                      ? [width - 1 - oy, height - 1 - ox]
-                      : rotate === 8
-                        ? [width - 1 - oy, ox]
-                        : [ox, oy];
-        const source = (sy * width + sx) * 4,
+        const orientedX = sourceColumns[x];
+        let sourceX = orientedX,
+          sourceY = orientedY;
+        switch (rotate) {
+          case 2:
+            sourceX = width - 1 - orientedX;
+            break;
+          case 3:
+            sourceX = width - 1 - orientedX;
+            sourceY = height - 1 - orientedY;
+            break;
+          case 4:
+            sourceY = height - 1 - orientedY;
+            break;
+          case 5:
+            sourceX = orientedY;
+            sourceY = orientedX;
+            break;
+          case 6:
+            sourceX = orientedY;
+            sourceY = height - 1 - orientedX;
+            break;
+          case 7:
+            sourceX = width - 1 - orientedY;
+            sourceY = height - 1 - orientedX;
+            break;
+          case 8:
+            sourceX = width - 1 - orientedY;
+            sourceY = orientedX;
+            break;
+        }
+        const source = (sourceY * width + sourceX) * 4,
           dest = (y * targetWidth + x) * 4,
           alpha = data[source + 3] / 255;
         for (let c = 0; c < 3; c++)
@@ -192,6 +213,7 @@ export async function normalizeImage(
           );
         output[dest + 3] = 255;
       }
+    }
     const result = jpeg.encode(
       { width: targetWidth, height: targetHeight, data: output },
       80,
@@ -207,6 +229,8 @@ export async function normalizeImage(
     throw invalid();
   }
 }
+
+let processingUploads = 0;
 
 export async function uploadImage(
   db: D1Database,
@@ -226,6 +250,28 @@ export async function uploadImage(
     throw invalid();
   if (Number(request.headers.get("content-length") ?? 0) > MAX_BYTES)
     throw invalid();
+  // Protect the isolate's memory before buffering/decompressing another image.
+  if (processingUploads >= 1)
+    throw new AppError(
+      503,
+      "Há outra imagem sendo processada. Aguarde um instante e tente novamente.",
+      "IMAGE_CAPACITY",
+      2,
+    );
+  processingUploads++;
+  try {
+    return await storeUpload(db, session, request, kind);
+  } finally {
+    processingUploads--;
+  }
+}
+
+async function storeUpload(
+  db: D1Database,
+  session: Session,
+  request: Request,
+  kind: "product" | "banner",
+) {
   const reader = request.body?.getReader();
   if (!reader) throw invalid();
   const chunks: Uint8Array[] = [];

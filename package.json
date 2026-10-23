@@ -12,6 +12,7 @@
     "check": "node scripts/run.mjs astro check",
     "test": "node scripts/run.mjs vitest run",
     "test:e2e": "node scripts/run.mjs playwright test",
+    "test:load": "node scripts/load-demo.mjs",
     "lint": "node scripts/run.mjs prettier --check .",
     "format": "node scripts/run.mjs prettier --write .",
     "db:migrate": "node scripts/run.mjs wrangler d1 migrations apply doofi-local --local",
@@ -43,7 +44,7 @@
     "prettier": "3.9.10",
     "prettier-plugin-astro": "1.1.1",
     "typescript": "5.9.3",
-    "vitest": "4.1.0",
+    "vitest": "4.1.12",
     "wrangler": "4.151.2"
   }
 }

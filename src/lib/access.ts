@@ -8,11 +8,35 @@ export interface DemoAccessConfig {
 }
 
 const keySets = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
+const requestChecks = new WeakMap<
+  Request,
+  { signature: string; result: Promise<boolean> }
+>();
 
-export async function demoAllowed(
+export function demoAllowed(
   request: Request,
   mode: string,
   config: DemoAccessConfig = {},
+) {
+  // Middleware and API share only the verification of this exact request/config/token.
+  const signature = JSON.stringify([
+    mode,
+    config.DOOFI_DEMO_HOST,
+    config.CF_ACCESS_TEAM_DOMAIN,
+    config.CF_ACCESS_AUD,
+    request.headers.get("cf-access-jwt-assertion"),
+  ]);
+  const previous = requestChecks.get(request);
+  if (previous?.signature === signature) return previous.result;
+  const result = verifyDemoAccess(request, mode, config);
+  requestChecks.set(request, { signature, result });
+  return result;
+}
+
+async function verifyDemoAccess(
+  request: Request,
+  mode: string,
+  config: DemoAccessConfig,
 ) {
   if (mode === "local-demo") return localDemoAllowed(request, mode);
   if (mode !== "staging-demo") return false;

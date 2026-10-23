@@ -6,6 +6,8 @@ Loja digital multiempresa com catálogo, carrinho, checkout convidado, atendimen
 
 Veja o [guia de atualização, Windows e novas funções](docs/ATUALIZACAO_CATALOGO.md). Inclui categorias, combos, indisponibilidade, fotos, banner, fontes, paletas e entregador próprio.
 
+A [auditoria de concorrência e desempenho](docs/AUDITORIA_CONCORRENCIA.md) registra as falhas reproduzidas, as correções e os limites das medições. A atualização requer aplicar a migração `0004_concorrencia_indices.sql` com `npm run db:migrate` no ambiente local ou `npm run db:migrate:staging` na homologação.
+
 ## Executar
 
 Requisitos: Node 24 (ou >=22.22), npm e Linux/macOS/Windows compatível com workerd. As versões exatas estão em `package-lock.json`.
@@ -71,12 +73,15 @@ npm run preview -- --port 4321
 
 Pare o servidor anterior antes de usar a mesma porta. Execute `check`/`build` com o servidor de desenvolvimento parado: o adapter pode regenerar o cache do Vite. O wrapper `scripts/run.mjs` mantém a configuração de ferramentas em `.local/config` e desliga telemetria opcional.
 
+Com o preview local iniciado, execute em outro terminal `npm run test:load`. O comando faz 100 leituras do catálogo em cada nível de concorrência (1, 10, 30 e 50), valida as respostas e grava tempos p50/p95 em `.local/load-tests/latest.json`. Aceita uma porta alternativa, por exemplo `npm run test:load -- http://localhost:4323`. O teste aceita somente endereços HTTP locais e não cria pedidos. As medidas não estimam a capacidade do Cloudflare remoto.
+
 ## Documentação
 
 - [Arquitetura e decisões](docs/ARQUITETURA_P1.md)
 - [Validação, gates e pendências](docs/VALIDACAO_P1.md)
 - [Operação e restauração](docs/OPERACAO.md)
 - [Contratos de API](docs/API.md)
+- [Auditoria de concorrência e desempenho](docs/AUDITORIA_CONCORRENCIA.md)
 - [Dossiê original v0.9.5](docs/referencia/docs/01_PROTOTIPO_FUNCIONAL.md)
 
 As capturas em `docs/evidencias` foram geradas pelos testes com dados fictícios. Os documentos v0.9.5 são referências de requisitos; o SQL e os testes da versão histórica v0.9.4 não foram usados como implementação ou evidência desta P1. Os anexos de diplomas não foram importados.

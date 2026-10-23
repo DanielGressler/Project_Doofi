@@ -96,6 +96,11 @@ it("API · loja A não lê nem altera pedido, catálogo ou auditoria de B", asyn
   ).toBe(404);
   const rows = await (await call("painel/pedidos", undefined, a)).json();
   expect(rows).toEqual([]);
+  const overview = (await (
+    await call("painel/visao-geral?storeId=store-b", undefined, a)
+  ).json()) as { orders: unknown[]; summary: { total_orders: number } };
+  expect(overview.orders).toEqual([]);
+  expect(overview.summary.total_orders).toBe(0);
 });
 it("API · mutação exige CSRF e cookie; logout revoga imediatamente", async () => {
   const o = await order();

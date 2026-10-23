@@ -1,4 +1,5 @@
 import { $, api, busy, el, feedback } from "./browser";
+import { createPoller } from "./poller";
 import {
   money,
   statusLabels,
@@ -233,22 +234,25 @@ if (root) {
         ),
       );
   }
-  async function refresh(force = false) {
-    try {
-      const next = await api<PublicOrder>(`pedidos/${token}`);
-      if (
-        force ||
-        next.version !== order.version ||
-        (next.quote && next.quote.expires_at <= Date.now() / 1000)
-      ) {
-        order = next;
-        render();
-      }
-      feedback("Dados atualizados.");
-    } catch (e) {
-      feedback((e as Error).message, true);
+  async function load() {
+    const next = await api<PublicOrder>(`pedidos/${token}`);
+    if (next.version < order.version) return;
+    if (
+      next.version !== order.version ||
+      (next.quote && next.quote.expires_at <= Date.now() / 1000)
+    ) {
+      order = next;
+      render();
     }
+    feedback("Dados atualizados.");
   }
+  const canRefresh = () =>
+    !document.hidden && !root.contains(document.activeElement);
+  const poller = createPoller(load, {
+    enabled: canRefresh,
+    onError: (error) => feedback((error as Error).message, true),
+  });
+  const refresh = (fresh = false) => poller.refresh(fresh);
   $("#refresh-tracking").onclick = () => void refresh(true);
   $("#copy-link").onclick = async () => {
     try {
@@ -275,8 +279,7 @@ if (root) {
     }
   } catch {}
   render();
-  setInterval(() => {
-    if (!document.hidden && !root.contains(document.activeElement))
-      void refresh();
-  }, 20000);
+  document.addEventListener("visibilitychange", () => {
+    if (canRefresh()) void refresh();
+  });
 }

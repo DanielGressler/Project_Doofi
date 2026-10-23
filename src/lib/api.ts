@@ -13,7 +13,11 @@ import {
   transition,
 } from "./orders";
 import type { Store } from "./types";
-import { uploadImage } from "./media";
+import {
+  getDashboard,
+  getOrderSummary,
+  recentOrdersStatement,
+} from "./dashboard";
 import { demoAllowed, type DemoAccessConfig } from "./access";
 
 const json = (
@@ -116,6 +120,7 @@ export async function handleApi(
         await rateLimit(db, request, `panel:${session.store_id}`, 100);
       if (path === "painel/imagens" && method === "POST") {
         await rateLimit(db, request, `upload:${session.store_id}`, 10);
+        const { uploadImage } = await import("./media");
         return json(
           await uploadImage(
             db,
@@ -146,41 +151,14 @@ export async function handleApi(
         return json(
           await saveProduct(db, session, await body(request), match[1]),
         );
-      if (path === "painel/resumo" && method === "GET") {
-        const summary = await db
-          .prepare(
-            `SELECT COUNT(*) AS total_orders,
-          COALESCE(SUM(status='COMPLETED'),0) AS completed,
-          COALESCE(SUM(status IN ('CANCELLED','REJECTED')),0) AS cancelled,
-          COALESCE(SUM(status IN ('PENDING','QUOTE_PENDING','QUOTE_PROPOSED','QUOTE_ACCEPTED')),0) AS pending,
-          COALESCE(SUM(CASE WHEN status NOT IN ('CANCELLED','REJECTED') THEN total ELSE 0 END),0) AS order_value,
-          ROUND(AVG(CASE WHEN status NOT IN ('CANCELLED','REJECTED') THEN total END)) AS average_order
-          FROM orders WHERE store_id=?`,
-          )
-          .bind(session.store_id)
-          .first();
-        const topItem = await db
-          .prepare(
-            `SELECT i.title,SUM(i.quantity) AS units FROM order_items i
-          JOIN orders o ON o.id=i.order_id AND o.store_id=i.store_id
-          WHERE i.store_id=? AND o.status NOT IN ('REJECTED','CANCELLED') GROUP BY i.product_id
-          ORDER BY units DESC,i.title LIMIT 1`,
-          )
-          .bind(session.store_id)
-          .first();
-        return json({ ...summary, topItem });
-      }
-      if (path === "painel/pedidos" && method === "GET") {
-        const orders = (
-          await db
-            .prepare(
-              `SELECT id,protocol,status,fulfillment,subtotal,delivery_fee,total,customer_name,created_at,version FROM orders WHERE store_id=? ORDER BY created_at DESC,rowid DESC LIMIT 100`,
-            )
-            .bind(session.store_id)
-            .all()
-        ).results;
-        return json(orders);
-      }
+      if (path === "painel/visao-geral" && method === "GET")
+        return json(await getDashboard(db, session.store_id));
+      if (path === "painel/resumo" && method === "GET")
+        return json(await getOrderSummary(db, session.store_id));
+      if (path === "painel/pedidos" && method === "GET")
+        return json(
+          (await recentOrdersStatement(db, session.store_id).all()).results,
+        );
       match = path.match(
         /^painel\/pedidos\/([^/]+)(?:\/(transicoes|cotacao|simular-conferencia|auditoria))?$/,
       );
@@ -225,7 +203,7 @@ export async function handleApi(
       return json(
         { error: error.message, code: error.code },
         error.status,
-        error.status === 429 ? { "Retry-After": "60" } : {},
+        error.retryAfter ? { "Retry-After": String(error.retryAfter) } : {},
       );
     const correlationId = crypto.randomUUID();
     console.error(

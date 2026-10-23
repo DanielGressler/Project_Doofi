@@ -15,6 +15,6 @@ declare namespace Cloudflare {
 }
 declare namespace App {
   interface Locals {
-    session: import("./lib/types").Session | null;
+    session: import("./lib/types").AuthenticatedSession | null;
   }
 }

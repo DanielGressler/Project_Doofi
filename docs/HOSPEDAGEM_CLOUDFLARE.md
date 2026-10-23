@@ -88,6 +88,8 @@ O domínio da equipe aparece nas configurações do Zero Trust. O AUD é o ident
 
 Salve e publique a atualização das variáveis. `APP_MODE=staging-demo` já é definido pelo build de homologação. O deploy usa `keep_vars` para preservar variáveis de execução configuradas no painel.
 
+O script também copia `DOOFI_DEMO_HOST`, `CF_ACCESS_TEAM_DOMAIN` e `CF_ACCESS_AUD` quando essas três variáveis são fornecidas em **Build variables**. Nesse caso, salve e execute um novo build/deploy para que os valores cheguem ao Worker. Uma alteração apenas salva na configuração de Build não modifica a publicação que já está em execução. A configuração diretamente em **Settings → Variables and Secrets** do Worker é aplicada com **Save and deploy**.
+
 Até que os três campos estejam corretos, o sistema bloqueia o acesso. O backend verifica assinatura RS256, emissor, audiência, expiração e identidade do token `Cf-Access-Jwt-Assertion`. Um cabeçalho inventado ou o acesso por outro host não libera o aplicativo. Falhas ao consultar as chaves públicas também mantêm o bloqueio.
 
 ## 5. Validar e compartilhar

@@ -16,6 +16,7 @@ Prefixo `/api/v1`. Respostas JSON, `Cache-Control: no-store`. No modo local, os 
 | POST      | `/pedidos/:token/reject-quote`            | `{version,nonce,quoteVersion}`; cancela a solicitação  |
 | POST      | `/pedidos/:token/declare-payment`         | `{version,nonce}`; somente declaração simulada         |
 | GET       | `/painel/pedidos`                         | Sessão; 100 mais recentes da própria loja              |
+| GET       | `/painel/visao-geral`                     | Sessão; `{orders,summary}` em um snapshot transacional |
 | GET       | `/painel/pedidos/:id`                     | Sessão + ownership; detalhes para atendimento          |
 | GET       | `/painel/pedidos/:id/auditoria`           | Sessão + ownership; trilha restrita                    |
 | POST      | `/painel/pedidos/:id/transicoes`          | Sessão + CSRF; `{version,status,reason}`               |
@@ -26,12 +27,21 @@ Prefixo `/api/v1`. Respostas JSON, `Cache-Control: no-store`. No modo local, os 
 | POST      | `/painel/produtos`                        | Sessão + CSRF; cria produto fictício                   |
 | PATCH     | `/painel/produtos/:id`                    | Sessão + CSRF + ownership + versão                     |
 | GET/PATCH | `/painel/loja`                            | Configuração própria; alteração exige owner e CSRF     |
+| POST      | `/painel/imagens?kind=product\|banner`    | Sessão + CSRF; corpo binário JPG/PNG, até 2 MB e 4 MP  |
 
 Checkout: `intent`, `items:[{productId,quantity}]`, `fulfillment:PICKUP|FIXED|QUOTE`, `payment:PIX_SIMULATED|ON_FULFILLMENT_SIMULATED`, `name`, `contact`, `note` opcional, `consent:true`, `syntheticData:true`. Entregas exigem `address`, `neighborhood` atendido e `postalCode` com oito dígitos. Campos monetários enviados pelo navegador não determinam o total. Mesmo intento com dados de checkout diferentes retorna 409.
 
-Produtos: `title`, `description`, `category`, `price` em centavos, `available` booleano, `image` no conjunto sintético; edição também exige `version`. Configuração: `title`, `description`, `contact`, `hours`, `pickup_address`, `neighborhoods` separados por vírgula, `delivery_fee` em centavos, `is_open` booleano, `version`.
+Produtos: `title`, `description`, `category`, `price` em centavos, `unavailable` booleano (marcado significa indisponível), `image` no conjunto sintético; edição também exige `version`. `available` permanece aceito para clientes anteriores. Se ambos forem enviados, precisam ser booleanos opostos; contradições retornam 422. Combos usam `is_combo:true` e dois `componentIds` distintos da mesma loja. `image_id` associa uma foto enviada pelo endpoint de imagens. Configuração: `title`, `description`, `contact`, `hours`, `pickup_address`, `neighborhoods` separados por vírgula, `delivery_fee` em centavos, `is_open` booleano, `version`.
 
-Erros: 401 sessão ausente/inativa; 403 origem/CSRF/ambiente; 404 recurso não encontrado ou de outra loja; 409 conflito de versão/estado/intento; 413 tamanho; 415 formato; 422 validação; 429 excesso de tentativas; 500 erro interno com ID de correlação. IDs de outra loja não revelam sua existência. Não existe endpoint para conciliação bancária, Pix real ou upload de comprovantes.
+Erros: 401 sessão ausente/inativa; 403 origem/CSRF/ambiente; 404 recurso não encontrado ou de outra loja; 409 conflito de versão/estado/intento; 413 tamanho; 415 formato; 422 validação; 429 excesso de tentativas; 503 capacidade temporária de processamento de imagem; 500 erro interno com ID de correlação. IDs de outra loja não revelam sua existência. Não existe endpoint para conciliação bancária, Pix real ou upload de comprovantes.
+
+O checkout retorna 409 com `code:CATALOG_CHANGED` se loja, produtos, componentes de combos ou validade do intento mudarem entre a leitura e o commit. O cliente deve revisar o carrinho antes de reenviar. Pedidos já criados continuam recuperáveis pelo mesmo intento e payload, mesmo após alteração do catálogo.
+
+O aceite de frete revalida a expiração da cotação no próprio `UPDATE`. A versão usada em alterações é um inteiro seguro, separado do limite monetário de 100.000 centavos.
+
+`GET /pedidos/:token` inclui os últimos 100 eventos públicos, em ordem cronológica, lidos na mesma transação de status, pagamento e cotação. O histórico completo continua armazenado na auditoria restrita ao lojista. `/painel/pedidos` e `/painel/resumo` permanecem disponíveis; a interface usa `/painel/visao-geral` para obter lista e indicadores consistentes com uma única requisição.
+
+429 informa `Retry-After` com os segundos restantes da janela. Uploads têm uma vaga de processamento por instância de execução: concorrência acima dela retorna 503, `code:IMAGE_CAPACITY` e `Retry-After:2`, antes de carregar outra imagem na memória. Esse limite protege a instância; não é um limite global de uploads de toda a implantação.
 
 ## Aparência da loja
 

@@ -49,8 +49,10 @@ Os arquivos de backup contêm dados da demonstração, sessões e material cript
 - Limites D1 por janela/minuto: login 10, checkout 120, emissão de intento 120, consulta de pedido 240 e mutações administrativas 100 por loja/IP. Em desenvolvimento, conexões sem `CF-Connecting-IP` compartilham o bucket local.
 - Painel lista os 100 pedidos mais recentes; os indicadores agregam os pedidos da loja. Não há medição de clique ou inferência de receita recebida.
 - Cada criação registra duração e linhas lidas/escritas retornadas pelo D1. Erros recebem correlação sem dados do pedido. Valores do emulador não estimam CPU/latência/cotas do serviço remoto.
+- Atualizações automáticas aguardam a resposta anterior. Falhas espaçam novas tentativas até 120 segundos, respeitam `Retry-After` e recebem uma pequena variação aleatória para distribuir chamadas. Abas ocultas não fazem consultas automáticas. Requisições do navegador, incluindo uploads, têm prazo de 30 segundos; uma resposta perdida não garante que a mutação deixou de ocorrer, portanto o checkout preserva o intento e as demais alterações usam versão.
+- A migração 0004 adiciona índices por loja/expiração e remove o índice de catálogo que ficou redundante. A primeira chamada permitida por escopo/IP/minuto remove até 256 sessões, intentos e buckets expirados de cada tabela. A limpeza retoma com o tráfego; pedidos e auditoria não são expurgados por esse mecanismo.
 
-Antes de publicar homologação: medir CPU, requests, rows read/write e storage reais; definir alertas de 70% e 90% das cotas do plano e responsáveis; restringir acesso, separar bancos e revisar retenção/expurgo de sessões, intentos e buckets. Os alertas estão propostos, **não provisionados**.
+Antes de ampliar a homologação: medir CPU, requests, rows read/write e storage reais; definir alertas de 70% e 90% das cotas do plano e responsáveis; restringir acesso, separar bancos e definir retenção de pedidos e auditoria. Os alertas estão propostos, **não provisionados**. A [auditoria de concorrência](AUDITORIA_CONCORRENCIA.md) descreve o teste de carga local e os gargalos que ainda precisam de medição remota.
 
 ## Falha ou indisponibilidade
 
@@ -59,4 +61,4 @@ Antes de publicar homologação: medir CPU, requests, rows read/write e storage 
 3. Reproduza em teste isolado. A suíte de rollback deve falhar se pedido e auditoria perderem atomicidade.
 4. Restaure uma cópia em diretório separado, reconcilie e documente o resultado antes de substituir dados.
 
-A CI foi adicionada, mas não executada no GitHub nesta sessão. Não há deploy remoto, release publicada, serviço pago ou segredo Cloudflare solicitado nesta entrega.
+Os resultados locais atuais estão na [auditoria de concorrência](AUDITORIA_CONCORRENCIA.md). Eles não confirmam a execução da CI ou o deploy na conta Cloudflare do titular. Aplicar a migração remota exige a autenticação dessa conta.

@@ -13,7 +13,8 @@ try {
   return Astro.redirect("/404");
 }
 const products = await getProducts(env.DB, store.id);
-const green = store.theme === "green";
+// The legacy seed theme selects demo artwork; palette controls the page colors.
+const usesFreshIllustration = store.theme === "green";
 ---
 
 <Layout title={store.title} slug={store.slug} appearance={store}>
@@ -38,9 +39,11 @@ const green = store.theme === "green";
           <span class="mini-spark">✳︎</span> FEITO AQUI, NO SEU BAIRRO
         </div>
         <h1 id="store-heading">
-          {green ? "Uma pausa leve." : "Pequenos sabores."}
+          {usesFreshIllustration ? "Uma pausa leve." : "Pequenos sabores."}
           <br />
-          <em>{green ? "Um dia mais fresco." : "Bons momentos."}</em>
+          <em>
+            {usesFreshIllustration ? "Um dia mais fresco." : "Bons momentos."}
+          </em>
         </h1>
         <p>{store.description}</p>
         <a class="button button-primary" href="#cardapio">
@@ -59,7 +62,7 @@ const green = store.theme === "green";
             width="1600"
             height="600"
           />
-        ) : green ? (
+        ) : usesFreshIllustration ? (
           <ProductArt kind="bowl" large />
         ) : (
           <HeroArt />
@@ -73,7 +76,7 @@ const green = store.theme === "green";
     </section>
     <section class="store-info" aria-label="Informações da loja">
       <div class="store-identity">
-        <div class:list={["store-avatar", { green }]}>
+        <div class:list={["store-avatar", { green: usesFreshIllustration }]}>
           <Icon name="store" size={26} />
         </div>
         <div>

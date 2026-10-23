@@ -3,6 +3,7 @@ export class AppError extends Error {
     public status: number,
     message: string,
     public code = "VALIDATION",
+    public retryAfter?: number,
   ) {
     super(message);
   }
@@ -87,6 +88,8 @@ export function object(value: unknown): Record<string, unknown> {
     throw new AppError(422, "Dados inválidos.");
   return value as Record<string, unknown>;
 }
+export const versionField = (value: unknown) =>
+  integer(value, "Versão", 0, Number.MAX_SAFE_INTEGER);
 export async function body(request: Request) {
   if (!request.headers.get("content-type")?.startsWith("application/json"))
     throw new AppError(415, "Envie os dados em JSON.");
@@ -159,20 +162,45 @@ export async function rateLimit(
   scope: string,
   limit = 120,
 ) {
-  const window = Math.floor(now() / 60);
+  const timestamp = now();
+  const windowNumber = Math.floor(timestamp / 60);
+  const expiresAt = (windowNumber + 1) * 60;
   const bucket = await hash(
-    `${scope}:${request.headers.get("cf-connecting-ip") ?? "local"}:${window}`,
+    `${scope}:${request.headers.get("cf-connecting-ip") ?? "local"}:${windowNumber}`,
   );
   const result = await db
     .prepare(
-      "INSERT INTO rate_limits VALUES (?,1,?) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count",
+      "INSERT INTO rate_limits VALUES (?,1,?) ON CONFLICT(bucket) DO UPDATE SET count=count+1 WHERE count<? RETURNING count",
     )
-    .bind(bucket, (window + 1) * 60)
+    .bind(bucket, expiresAt, limit)
     .first<{ count: number }>();
-  if ((result?.count ?? 0) > limit)
+  if (!result)
     throw new AppError(
       429,
       "Muitas tentativas. Aguarde um minuto e tente novamente.",
       "RATE_LIMIT",
+      Math.max(1, expiresAt - now()),
     );
+  // Amortize indexed, bounded maintenance: once per active scope/IP/minute.
+  if (result.count === 1) await pruneExpired(db, timestamp);
+}
+
+export async function pruneExpired(db: D1Database, timestamp = now()) {
+  return db.batch([
+    db
+      .prepare(
+        "DELETE FROM rate_limits WHERE rowid IN (SELECT rowid FROM rate_limits WHERE expires_at<=? ORDER BY expires_at LIMIT 256)",
+      )
+      .bind(timestamp),
+    db
+      .prepare(
+        "DELETE FROM checkout_intents WHERE rowid IN (SELECT rowid FROM checkout_intents WHERE expires_at<=? ORDER BY expires_at LIMIT 256)",
+      )
+      .bind(timestamp),
+    db
+      .prepare(
+        "DELETE FROM sessions WHERE rowid IN (SELECT rowid FROM sessions WHERE expires_at<=? ORDER BY expires_at LIMIT 256)",
+      )
+      .bind(timestamp),
+  ]);
 }

@@ -8,7 +8,7 @@ import {
   same,
   textField,
 } from "./core";
-import type { Session } from "./types";
+import type { AuthenticatedSession, Session } from "./types";
 
 const cookieName = "doofi_session";
 export const cookieToken = (request: Request) =>
@@ -21,19 +21,19 @@ export const cookieToken = (request: Request) =>
 export async function getSession(
   db: D1Database,
   request: Request,
-): Promise<Session | null> {
+): Promise<AuthenticatedSession | null> {
   const token = cookieToken(request);
   if (!/^[a-f0-9]{64}$/.test(token)) return null;
   return db
     .prepare(
-      `SELECT s.token_hash,s.csrf_token,s.user_id,m.store_id,m.role,u.email FROM sessions s
+      `SELECT s.token_hash,s.csrf_token,s.user_id,m.store_id,m.role,u.email,t.title AS store_title,t.slug AS store_slug FROM sessions s
     JOIN users u ON u.id=s.user_id AND u.active=1
     JOIN store_memberships m ON m.user_id=u.id AND m.active=1
     JOIN stores t ON t.id=m.store_id AND t.active=1
     WHERE s.token_hash=? AND s.expires_at>?`,
     )
     .bind(await hash(token), now())
-    .first<Session>();
+    .first<AuthenticatedSession>();
 }
 export async function requireSession(
   db: D1Database,
@@ -94,8 +94,8 @@ export async function login(
   const csrf = randomToken();
   await db.batch([
     db
-      .prepare("DELETE FROM sessions WHERE token_hash=? OR expires_at<=?")
-      .bind(await hash(cookieToken(request)), now()),
+      .prepare("DELETE FROM sessions WHERE token_hash=?")
+      .bind(await hash(cookieToken(request))),
     db
       .prepare("INSERT INTO sessions VALUES (?,?,?,?)")
       .bind(await hash(token), user.id, csrf, now() + 28800),
