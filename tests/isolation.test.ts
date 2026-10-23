@@ -6,6 +6,7 @@ import { login } from "../src/lib/auth";
 import { applyD1Migrations, reset } from "cloudflare:test";
 import type { D1PreparedStatement } from "@cloudflare/workers-types";
 import seed from "../db/seed.sql?raw";
+import { legacyOrder } from "./fixtures/legacy-order";
 
 type Identity = { cookie: string; csrf: string };
 const shops = [
@@ -91,7 +92,8 @@ async function order(
     fulfillment: "FIXED",
     payment: "PIX_SIMULATED",
     name: `Cliente privado ${shop.id}`,
-    contact: `privado-${shop.id}@exemplo.invalid`,
+    phone: "00000000",
+    email: `privado-${shop.id}@exemplo.invalid`,
     address: `Endereço privado ${shop.id}`,
     neighborhood: "Centro",
     postalCode: "00000000",
@@ -513,7 +515,8 @@ it("checkout não mistura produtos, intentos ou componentes entre empresas", asy
     fulfillment: "PICKUP",
     payment: "PIX_SIMULATED",
     name: "Teste fictício",
-    contact: "teste.invalid",
+    phone: "00000000",
+    email: "teste.invalid",
     consent: true,
     syntheticData: true,
   };
@@ -567,6 +570,9 @@ it("cada token e nonce autoriza apenas seu pedido e não divulga dados privados"
         "request_hash",
         "customer_name",
         "customer_contact",
+        "customer_id",
+        "customer_phone",
+        "customer_email",
         "address",
         "neighborhood",
         "postal_code",
@@ -611,7 +617,7 @@ it("cada token e nonce autoriza apenas seu pedido e não divulga dados privados"
 it("migração preserva pedidos e exige nova sessão para eliminar escopo legado ambíguo", async () => {
   await reset();
   const migrations = env.TEST_MIGRATIONS;
-  await applyD1Migrations(env.DB, migrations.slice(0, -1));
+  await applyD1Migrations(env.DB, migrations.slice(0, 4));
   await env.DB.batch(
     seed
       .split(";\n")
@@ -620,7 +626,7 @@ it("migração preserva pedidos e exige nova sessão para eliminar escopo legado
       .map((s) => env.DB.prepare(s.replace(/;$/, ""))),
   );
   const identity = await auth("forno");
-  const existing = await order(shops[0]);
+  const existing = await legacyOrder(env.DB);
   await applyD1Migrations(env.DB, migrations);
   expect((await call("painel/catalogo", undefined, identity)).status).toBe(401);
   expect((await call(`pedidos/${existing.token}`)).status).toBe(200);

@@ -96,7 +96,11 @@ const labels: Record<string, string> = {
               <p>
                 {order.customer_name}
                 <br />
-                {order.customer_contact}
+                Telefone:{" "}
+                {order.customer_phone ?? "Não informado neste pedido antigo"}
+                <br />
+                E-mail:{" "}
+                {order.customer_email ?? "Não informado neste pedido antigo"}
               </p>
             </div>
             <div class="detail-section">

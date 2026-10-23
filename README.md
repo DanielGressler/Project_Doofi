@@ -10,6 +10,8 @@ A [auditoria de concorrência e desempenho](docs/AUDITORIA_CONCORRENCIA.md) regi
 
 A [auditoria de isolamento](docs/AUDITORIA_ISOLAMENTO.md) cobre empresas, clientes, permissões, imagens e dados públicos. A migração `0005_isolamento.sql` encerra as sessões administrativas anteriores e revoga sessões quando o acesso muda. Os empresários precisam entrar novamente; pedidos e catálogos são preservados.
 
+O checkout solicita nome, telefone e e-mail fictícios, além do endereço para entrega. Os [dados de envio do cliente](docs/DADOS_ENVIO_CLIENTE.md) são vinculados ao pedido por chave estrangeira, sem criar conta ou exigir senha/código do cliente. A migração `0006_dados_envio_cliente.sql` deve ser aplicada antes do deploy; o login das lojas permanece igual.
+
 ## Executar
 
 Requisitos: Node 24 (ou >=22.22), npm e Linux/macOS/Windows compatível com workerd. As versões exatas estão em `package-lock.json`.
@@ -85,6 +87,7 @@ Com o preview local iniciado, execute em outro terminal `npm run test:load`. O c
 - [Contratos de API](docs/API.md)
 - [Auditoria de concorrência e desempenho](docs/AUDITORIA_CONCORRENCIA.md)
 - [Auditoria de isolamento](docs/AUDITORIA_ISOLAMENTO.md)
+- [Dados de envio do cliente](docs/DADOS_ENVIO_CLIENTE.md)
 - [Dossiê original v0.9.5](docs/referencia/docs/01_PROTOTIPO_FUNCIONAL.md)
 
 As capturas em `docs/evidencias` foram geradas pelos testes com dados fictícios. Os documentos v0.9.5 são referências de requisitos; o SQL e os testes da versão histórica v0.9.4 não foram usados como implementação ou evidência desta P1. Os anexos de diplomas não foram importados.

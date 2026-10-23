@@ -25,7 +25,8 @@ const payload = (intent: string, extra: Record<string, unknown> = {}) => ({
   intent,
   items: [{ productId: "a-pao", quantity: 1 }],
   name: "Cliente fictício",
-  contact: "teste@exemplo.invalid",
+  phone: "(00) 00000-0000",
+  email: "teste@exemplo.invalid",
   fulfillment: "PICKUP",
   payment: "PIX_SIMULATED",
   consent: true,
@@ -69,6 +70,7 @@ it("checkout não grava preço lido antes de uma edição concorrente do catálo
     createOrder(database, "casa-do-forno", payload(intent)),
   ).rejects.toMatchObject({ status: 409, code: "CATALOG_CHANGED" });
   for (const table of [
+    "customer_details",
     "orders",
     "order_items",
     "payment_records",

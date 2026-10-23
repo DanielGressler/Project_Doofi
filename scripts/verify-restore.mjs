@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { prepareRestoreSql } from "./restore-sql.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -7,6 +8,7 @@ const stamp = new Date().toISOString().replaceAll(":", "-");
 const target = path.join(root, ".local", "restore-checks", stamp);
 mkdirSync(target, { recursive: true });
 const backup = path.join(target, "backup.sql");
+const restoreFile = path.join(target, "restore.sql");
 function wrangler(args, capture = false) {
   const r = spawnSync(
     process.execPath,
@@ -29,6 +31,7 @@ function wrangler(args, capture = false) {
   return r.stdout;
 }
 wrangler(["d1", "export", "doofi-local", "--local", "--output", backup]);
+writeFileSync(restoreFile, prepareRestoreSql(readFileSync(backup, "utf8")));
 const config = path.join(target, "restore.json");
 writeFileSync(
   config,
@@ -56,13 +59,13 @@ wrangler(
     "--persist-to",
     restoreState,
     "--file",
-    backup,
+    restoreFile,
     "--json",
   ],
   true,
 );
 const query =
-  "SELECT (SELECT COUNT(*) FROM orders) AS orders, (SELECT COUNT(*) FROM order_items) AS items, (SELECT COUNT(*) FROM audit_events) AS audit, (SELECT COUNT(*) FROM products) AS products, (SELECT COUNT(*) FROM combo_items) AS combo_links, (SELECT COUNT(*) FROM media_assets) AS media_assets, (SELECT COALESCE(SUM(LENGTH(data)),0) FROM media_assets) AS media_bytes, (SELECT COUNT(*) FROM orders o WHERE NOT EXISTS (SELECT 1 FROM audit_events a WHERE a.entity_id=o.id AND a.action='ORDER_CREATED')) AS orphan_orders, (SELECT COUNT(*) FROM orders WHERE total IS NOT NULL AND total<>subtotal+delivery_fee) AS bad_totals";
+  "SELECT (SELECT COUNT(*) FROM orders) AS orders, (SELECT COUNT(*) FROM order_items) AS items, (SELECT COUNT(*) FROM audit_events) AS audit, (SELECT COUNT(*) FROM products) AS products, (SELECT COUNT(*) FROM combo_items) AS combo_links, (SELECT COUNT(*) FROM media_assets) AS media_assets, (SELECT COALESCE(SUM(LENGTH(data)),0) FROM media_assets) AS media_bytes, (SELECT COUNT(*) FROM customer_details) AS customer_details, (SELECT COUNT(*) FROM orders o WHERE NOT EXISTS (SELECT 1 FROM customer_details c WHERE c.id=o.customer_id AND c.store_id=o.store_id)) AS missing_customer_details, (SELECT COUNT(*) FROM customer_details c WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id=c.id AND o.store_id=c.store_id)) AS unused_customer_details, (SELECT COUNT(*) FROM orders o WHERE NOT EXISTS (SELECT 1 FROM audit_events a WHERE a.entity_id=o.id AND a.action='ORDER_CREATED')) AS orphan_orders, (SELECT COUNT(*) FROM orders WHERE total IS NOT NULL AND total<>subtotal+delivery_fee) AS bad_totals";
 function counts(database, args = []) {
   const output = wrangler(
     [
@@ -89,6 +92,8 @@ const restored = counts("doofi-restore", [
 if (
   JSON.stringify(original) !== JSON.stringify(restored) ||
   original.orphan_orders !== 0 ||
+  original.missing_customer_details !== 0 ||
+  original.unused_customer_details !== 0 ||
   original.bad_totals !== 0
 )
   throw new Error(

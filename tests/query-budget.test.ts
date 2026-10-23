@@ -55,7 +55,8 @@ async function order() {
     fulfillment: "PICKUP",
     payment: "PIX_SIMULATED",
     name: "Teste fictício",
-    contact: "teste@exemplo.invalid",
+    phone: "00000000",
+    email: "teste@exemplo.invalid",
     consent: true,
     syntheticData: true,
   });

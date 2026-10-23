@@ -48,7 +48,7 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
       <div>
         <section class="card">
           <h2>
-            <span class="section-number">1</span>Como podemos chamar você?
+            <span class="section-number">1</span>Dados para o pedido
           </h2>
           <div class="form-grid">
             <label class="field">
@@ -64,16 +64,32 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
               <small>Use somente dados inventados nesta P1.</small>
             </label>
             <label class="field">
-              <span>Contato fictício</span>
+              <span>Telefone fictício</span>
               <input
-                name="contact"
-                value="cliente@exemplo.invalid"
+                name="phone"
+                type="tel"
+                value="(00) 00000-0000"
                 required
-                minlength="4"
-                maxlength="80"
+                minlength="3"
+                maxlength="40"
                 autocomplete="off"
               />
-              <small>Este contato não recebe mensagens reais.</small>
+              <small>Use um número inventado para testar.</small>
+            </label>
+            <label class="field full">
+              <span>E-mail fictício</span>
+              <input
+                name="email"
+                inputmode="email"
+                value="cliente@exemplo.invalid"
+                required
+                minlength="3"
+                maxlength="120"
+                autocomplete="off"
+              />
+              <small>
+                Dados de envio, sem cadastro de conta ou código de confirmação.
+              </small>
             </label>
           </div>
         </section>

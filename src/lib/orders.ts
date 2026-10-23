@@ -13,6 +13,7 @@ import {
   versionField,
 } from "./core";
 import { getStore, getProducts } from "./catalog";
+import { deliveryIdentity } from "./customer-data";
 import type {
   Order,
   OrderItem,
@@ -76,8 +77,15 @@ function normalize(input: Record<string, unknown>) {
       422,
       "Confirme o uso exclusivo de dados fictícios e as condições da demonstração.",
     );
-  const name = textField(input.name, "Nome fictício", 2, 80);
-  const contact = textField(input.contact, "Contato fictício", 4, 80);
+  // Keep the old canonical payload only to recover already-created orders.
+  const legacy =
+    input.phone === undefined &&
+    input.email === undefined &&
+    typeof input.contact === "string";
+  const identity = legacy ? null : deliveryIdentity(input);
+  const name = identity?.name ?? textField(input.name, "Nome fictício", 2, 80);
+  const contact =
+    identity?.phone ?? textField(input.contact, "Contato fictício", 4, 80);
   const note = textField(input.note ?? "", "Observação", 0, 300);
   const address =
     fulfillment === "PICKUP"
@@ -103,6 +111,7 @@ function normalize(input: Record<string, unknown>) {
     address,
     neighborhood,
     postalCode,
+    ...(identity ? { phone: identity.phone, email: identity.email } : {}),
   };
 }
 
@@ -143,6 +152,12 @@ export async function createOrder(
   };
   const existing = await replay();
   if (existing) return existing;
+  if (!normalized.phone || !normalized.email)
+    throw new AppError(
+      422,
+      "Informe nome, telefone e e-mail fictícios para os dados de envio.",
+      "DELIVERY_DETAILS_REQUIRED",
+    );
   if (!store.is_open)
     throw new AppError(422, "A loja está fechada para novos pedidos.");
   if (normalized.fulfillment === "FIXED" && !store.has_own_delivery)
@@ -209,6 +224,7 @@ export async function createOrder(
   const status: OrderStatus =
     normalized.fulfillment === "QUOTE" ? "QUOTE_PENDING" : "PENDING";
   const id = crypto.randomUUID();
+  const customerId = crypto.randomUUID();
   const protocol = "DF-" + id.replace(/-/g, "").slice(0, 10).toUpperCase();
   const timestamp = now();
   const correlationId = crypto.randomUUID();
@@ -225,8 +241,8 @@ export async function createOrder(
     const writes = await db.batch([
       db
         .prepare(
-          `INSERT INTO orders (id,store_id,protocol,public_token_hash,token_expires_at,intent_hash,request_hash,status,fulfillment,subtotal,delivery_fee,total,customer_name,customer_contact,address,neighborhood,postal_code,note,created_at,updated_at)
-        SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+          `INSERT INTO customer_details (id,store_id,name,phone,email,address,neighborhood,postal_code,created_at)
+        SELECT ?,?,?,?,?,?,?,?,?
         WHERE EXISTS(SELECT 1 FROM stores WHERE id=? AND version=? AND active=1 AND is_open=1)
           AND EXISTS(SELECT 1 FROM checkout_intents WHERE key_hash=? AND store_id=? AND expires_at>unixepoch())
           AND NOT EXISTS(
@@ -234,6 +250,29 @@ export async function createOrder(
             LEFT JOIN products product ON product.id=json_extract(snapshot.value,'$[0]') AND product.store_id=?
             WHERE product.id IS NULL OR product.version<>json_extract(snapshot.value,'$[1]') OR product.available<>1
           )`,
+        )
+        .bind(
+          customerId,
+          store.id,
+          normalized.name,
+          normalized.phone,
+          normalized.email,
+          normalized.address,
+          normalized.neighborhood,
+          normalized.postalCode,
+          timestamp,
+          store.id,
+          store.version,
+          intentHash,
+          store.id,
+          JSON.stringify([...snapshotProducts]),
+          store.id,
+        ),
+      db
+        .prepare(
+          `INSERT INTO orders (id,store_id,protocol,public_token_hash,token_expires_at,intent_hash,request_hash,status,fulfillment,subtotal,delivery_fee,total,customer_name,customer_contact,address,neighborhood,postal_code,note,created_at,updated_at,customer_id)
+        SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+        WHERE EXISTS(SELECT 1 FROM customer_details WHERE id=? AND store_id=?)`,
         )
         .bind(
           id,
@@ -256,11 +295,8 @@ export async function createOrder(
           normalized.note,
           timestamp,
           timestamp,
-          store.id,
-          store.version,
-          intentHash,
-          store.id,
-          JSON.stringify([...snapshotProducts]),
+          customerId,
+          customerId,
           store.id,
         ),
       conditionalAudit(
@@ -294,7 +330,7 @@ export async function createOrder(
         )
         .bind(id, store.id, normalized.payment, timestamp, id),
     ]);
-    if (!writes[0].meta.changes) {
+    if (!writes[1].meta.changes) {
       const concurrentReplay = await replay();
       if (concurrentReplay) return concurrentReplay;
       throw new AppError(
@@ -324,7 +360,11 @@ export async function createOrder(
 
 export async function ownedOrder(db: D1Database, session: Session, id: string) {
   const order = await db
-    .prepare("SELECT * FROM orders WHERE id=? AND store_id=?")
+    .prepare(
+      `SELECT o.*,c.phone AS customer_phone,c.email AS customer_email
+      FROM orders o JOIN customer_details c ON c.id=o.customer_id AND c.store_id=o.store_id
+      WHERE o.id=? AND o.store_id=?`,
+    )
     .bind(id, session.store_id)
     .first<Order>();
   if (!order) {

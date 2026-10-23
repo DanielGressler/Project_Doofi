@@ -78,6 +78,9 @@ export interface Order {
   version: number;
   customer_name: string;
   customer_contact: string;
+  customer_id: string;
+  customer_phone?: string | null;
+  customer_email?: string | null;
   address: string | null;
   neighborhood: string | null;
   postal_code: string | null;

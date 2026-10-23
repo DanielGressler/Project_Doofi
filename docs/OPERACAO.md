@@ -37,7 +37,7 @@ Com o servidor e escritores parados:
 npm run db:verify-restore
 ```
 
-O comando exporta o banco local para `.local/restore-checks/<instante>/backup.sql`, importa em outro banco/estado local e compara contagens de pedidos, itens, produtos e auditoria. Também exige ausência de pedido sem evento de criação e de total inconsistente. `verification.json` registra os resultados. Cada execução usa um diretório novo; o banco original não é alterado. Não usar esse comando como procedimento de produção.
+O comando exporta o banco local para `.local/restore-checks/<instante>/backup.sql`, prepara `restore.sql` com todas as definições de tabelas antes dos dados e importa esse arquivo em outro banco/estado local. O original exportado é preservado. Compara contagens de pedidos, itens, produtos, auditoria e dados de envio. Também exige ausência de pedido sem evento de criação, total inconsistente, pedido sem dados de envio ou dados de envio sem pedido. `verification.json` registra os resultados. Cada execução usa um diretório novo; o banco original não é alterado. Não usar esse comando como procedimento de produção.
 
 Os arquivos de backup contêm dados da demonstração, sessões e material criptográfico local. São ignorados pelo Git; não publique backups ou traces. O teste prova restauração e consistência básica no emulador, sem equivaler a réplica Cloudflare remota ou validação exaustiva de todas as linhas.
 
@@ -57,6 +57,8 @@ Antes de ampliar a homologação: medir CPU, requests, rows read/write e storage
 ## Atualizar o isolamento
 
 Após atualizar para a revisão de isolamento, aplique a migração 0005 com `npm run db:migrate` (local) ou `npm run db:migrate:staging` (remoto autenticado). Ela encerra as sessões administrativas existentes uma vez, preservando pedidos, catálogos e imagens. Os empresários precisam entrar novamente. Mudanças posteriores de vínculo, papel, credenciais ou ativação revogam somente as sessões afetadas. Os cenários e limites estão na [auditoria de isolamento](AUDITORIA_ISOLAMENTO.md).
+
+Para os campos separados de nome, telefone e e-mail do checkout, aplique também a migração 0006 antes do deploy, conforme o [guia de dados de envio](DADOS_ENVIO_CLIENTE.md). Essa migração mantém as sessões empresariais e preserva pedidos antigos. Somente a 0005 encerra sessões existentes uma vez ao atualizar de versões anteriores.
 
 ## Falha ou indisponibilidade
 

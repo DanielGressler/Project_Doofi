@@ -48,7 +48,7 @@ test("carrinhos por empresa, clientes em contextos separados e descarte dos dado
       .getByRole("textbox", { name: /^Nome fictício/ })
       .fill("Cliente isolado A");
     await page
-      .getByRole("textbox", { name: /^Contato fictício/ })
+      .getByRole("textbox", { name: /^E-mail fictício/ })
       .fill("privado-a@exemplo.invalid");
     await page.locator('input[name="consent"]').check();
     await page.getByRole("button", { name: "Enviar pedido de teste" }).click();
@@ -115,7 +115,8 @@ test("HTML privado fica restrito à empresa autenticada e não permite cache", a
           fulfillment: "FIXED",
           payment: "PIX_SIMULATED",
           name: "Cliente secreto A",
-          contact: "privado-a@exemplo.invalid",
+          phone: "00000000",
+          email: "privado-a@exemplo.invalid",
           address: "Rua privativa A, 123",
           neighborhood: "Centro",
           postalCode: "00000000",
