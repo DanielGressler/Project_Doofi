@@ -44,6 +44,14 @@ const session = Astro.locals.session!;
         <Icon name="arrow" size={16} />
         Ver loja pública
       </a>
+      <details class="session-profile">
+        <summary>Meu acesso</summary>
+        <p>{session.email}</p>
+        <small>
+          {session.role === "owner" ? "Proprietário" : "Atendente"} ·{" "}
+          {session.store_title}
+        </small>
+      </details>
     </aside>
     <div class="panel-content">
       <slot />

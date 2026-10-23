@@ -102,7 +102,7 @@ Abra uma janela anônima e acesse `https://SEU_HOST/demo`:
 4. Faça um pedido fictício e acompanhe pelo painel de demonstração.
 5. Teste os uploads no Worker para verificar os limites de CPU e armazenamento do plano escolhido; os testes locais não medem esses limites remotos.
 
-As contas demonstrativas continuam sendo `forno@demo.doofi.test` e `verde@demo.doofi.test`, com a senha pública documentada no README. Cada pessoa autorizada pode experimentar essas contas; isso não implementa cadastro individual de empresários ou autenticação comercial de produção.
+As contas demonstrativas continuam sendo `forno@demo.doofi.test` e `verde@demo.doofi.test`, com a senha pública documentada no README. Cada pessoa autorizada pode experimentar essas contas ou usar **Criar minha loja**, no login, para criar uma empresa fictícia isolada e seguir o assistente de personalização. Esse cadastro continua restrito ao ambiente de demonstração protegido; não é autenticação comercial de produção. Aplique também `0007_onboarding_fila.sql` antes de publicar a atualização de interface.
 
 Os convidados precisam autenticar no Access também ao abrir links de acompanhamento. O e-mail usado no controle de acesso é real; os dados inseridos no checkout devem ser fictícios.
 

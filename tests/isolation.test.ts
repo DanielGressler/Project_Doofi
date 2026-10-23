@@ -6,7 +6,7 @@ import { login } from "../src/lib/auth";
 import { applyD1Migrations, reset } from "cloudflare:test";
 import type { D1PreparedStatement } from "@cloudflare/workers-types";
 import seed from "../db/seed.sql?raw";
-import { legacyOrder } from "./fixtures/legacy-order";
+import { legacyOrder, legacySession } from "./fixtures/legacy-order";
 
 type Identity = { cookie: string; csrf: string };
 const shops = [
@@ -625,7 +625,7 @@ it("migração preserva pedidos e exige nova sessão para eliminar escopo legado
       .filter(Boolean)
       .map((s) => env.DB.prepare(s.replace(/;$/, ""))),
   );
-  const identity = await auth("forno");
+  const identity = await legacySession(env.DB);
   const existing = await legacyOrder(env.DB);
   await applyD1Migrations(env.DB, migrations);
   expect((await call("painel/catalogo", undefined, identity)).status).toBe(401);

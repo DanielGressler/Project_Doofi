@@ -8,11 +8,11 @@ import {
   ownedOrder,
   publicStatus,
 } from "../src/lib/orders";
-import { getSession, login } from "../src/lib/auth";
+import { getSession } from "../src/lib/auth";
 import { handleApi } from "../src/lib/api";
 import type { CustomerDetails } from "../src/lib/customer-data";
 import type { Session } from "../src/lib/types";
-import { legacyOrder } from "./fixtures/legacy-order";
+import { legacyOrder, legacySession } from "./fixtures/legacy-order";
 
 const input = (intent: string, extra: Record<string, unknown> = {}) => ({
   intent,
@@ -283,12 +283,9 @@ it("dados antigos e login da loja sobrevivem à migração, sem inventar contato
   );
   const emailOrder = await legacyOrder(env.DB),
     phoneOrder = await legacyOrder(env.DB, "(00) 00000-9999");
-  const auth = await login(env.DB, new Request("http://localhost"), {
-    email: "forno@demo.doofi.test",
-    password: "demo-doofi-P1!",
-  });
+  const auth = await legacySession(env.DB);
   const request = new Request("http://localhost", {
-    headers: { cookie: auth.setCookie.split(";")[0] },
+    headers: { cookie: auth.cookie },
   });
   await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
   expect((await getSession(env.DB, request))?.store_id).toBe("store-a");

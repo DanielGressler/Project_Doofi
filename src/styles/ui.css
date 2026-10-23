@@ -1,0 +1,426 @@
+/* Shared interactions: native dialogs keep focus and keyboard behavior. */
+dialog.ui-dialog {
+  color: var(--ink, #25261f);
+  background: var(--paper, #fffdf8);
+  border: 1px solid #171717;
+  border-radius: 18px;
+  padding: 24px;
+  width: min(720px, calc(100% - 24px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+dialog::backdrop {
+  background: rgb(15 20 15 / 65%);
+}
+body:has(dialog[open]) {
+  overflow: hidden;
+}
+.dialog-heading {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.dialog-heading h2 {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(20px, 3vw, 28px);
+  line-height: 1.25;
+}
+.dialog-heading h2:focus {
+  outline: none;
+}
+.dialog-heading > button {
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 10px 12px;
+  max-width: 100px;
+}
+.editor-dialog .product-form {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
+.editor-dialog .product-edit-heading {
+  display: none;
+}
+.catalog-section {
+  margin-top: 28px;
+}
+.catalog-section > h2 {
+  margin-bottom: 16px;
+}
+.compact-catalog {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.catalog-card {
+  border: 1px solid var(--line, #dedbd2);
+  border-radius: 12px;
+  background: #fffdf8;
+  min-width: 0;
+}
+.catalog-card[open] {
+  grid-column: 1 / -1;
+}
+.catalog-card summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px;
+  list-style: none;
+}
+.catalog-card summary > span:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.catalog-card summary strong,
+.catalog-card summary small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.catalog-card summary small {
+  margin-top: 4px;
+  color: #65665e;
+  font-size: 12px;
+}
+.expand-label {
+  font-size: 12px;
+  text-decoration: underline;
+}
+.catalog-card .product-form {
+  border: 0;
+  border-top: 1px solid var(--line, #dedbd2);
+  margin: 0;
+}
+.catalog-card .product-edit-heading {
+  display: none;
+}
+.menu-only,
+.store-theme .shop-layout.menu-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+.menu-section {
+  margin-bottom: 28px;
+}
+.menu-section > h3 {
+  font-size: 23px;
+  margin: 18px 0;
+}
+.menu-only .product-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+}
+.cart-dock {
+  position: sticky;
+  bottom: 12px;
+  z-index: 5;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 20px auto;
+  padding: 12px 18px;
+  border: 1px solid var(--ink, #25261f);
+  background: var(--paper, #fffdf8);
+  border-radius: 14px;
+  box-shadow: 0 4px 20px #0002;
+  max-width: 700px;
+}
+.cart-announcement {
+  min-height: 24px;
+  font-size: 14px;
+  text-align: center;
+}
+.cart-page {
+  max-width: 780px;
+}
+.cart-page h1 {
+  font-size: clamp(30px, 5vw, 44px);
+}
+.cart-review {
+  margin-top: 24px;
+}
+.cart-review .cart-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 24px;
+  align-items: center;
+}
+.cart-review .cart-item-top {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cart-review .cart-item > small,
+.cart-review .cart-item > p {
+  grid-column: 1;
+}
+.cart-review .quantity-control {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+}
+.checkout-steps {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0;
+  list-style: none;
+  gap: 8px 20px;
+  font-size: 13px;
+  margin: 18px 0;
+}
+.checkout-steps [aria-current] {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+.checkout-compact .page-heading {
+  margin: 16px 0 24px;
+}
+.checkout-compact .page-heading h1 {
+  font-size: clamp(30px, 4vw, 42px);
+}
+.checkout-compact .card {
+  padding: 20px;
+  margin-bottom: 14px;
+}
+.checkout-compact .card h2 {
+  font-size: 21px;
+  margin-bottom: 16px;
+}
+.checkout-compact .field {
+  margin-bottom: 0;
+}
+.checkout-compact .form-grid {
+  gap: 14px;
+}
+.checkout-compact .contact-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.checkout-compact .contact-grid .field:last-child {
+  grid-column: 1 / -1;
+}
+.checkout-compact .choice {
+  padding: 10px 12px;
+}
+.checkout-compact .summary {
+  position: static;
+}
+.checkout-compact .summary .checkbox {
+  font-size: 12px;
+  margin: 14px 0;
+}
+.checkout-review {
+  padding-bottom: 16px;
+}
+.checkout-review summary,
+.optional-note summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.optional-note[open] .field {
+  margin-top: 14px;
+}
+.footer-links {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.footer-links a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: 13px;
+}
+.session-profile {
+  margin-top: 20px;
+  padding: 12px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.session-profile summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.session-profile p {
+  margin: 12px 0 6px;
+}
+.order-row,
+#order-detail .card {
+  border: 2px solid #171717;
+}
+.queue-stack {
+  position: relative;
+  isolation: isolate;
+}
+.queue-stack.has-next::before,
+.queue-stack.has-next::after {
+  content: "";
+  position: absolute;
+  inset: 6px -5px -6px;
+  border: 1px solid #171717;
+  border-radius: 12px;
+  background: #ece8dc;
+  z-index: -1;
+}
+.queue-stack.has-next::after {
+  inset: 12px -10px -12px;
+  z-index: -2;
+  background: #d9d5c9;
+}
+.queue-card {
+  border: 2px solid #171717;
+  border-radius: 12px;
+  padding: 20px;
+  background: #fffdf8;
+}
+.queue-location {
+  padding: 12px;
+  background: #f2efe5;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.queue-items {
+  max-height: 30dvh;
+  overflow: auto;
+  padding-left: 22px;
+}
+.queue-items li {
+  padding: 6px 0;
+}
+.queue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+.queue-count {
+  font-size: 13px;
+  margin-bottom: 18px;
+}
+.queue-card .field {
+  margin-top: 16px;
+}
+.wizard-progress {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+.wizard-progress li {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #b9b5a9;
+  font-size: 13px;
+}
+.wizard-progress [aria-current] {
+  background: #282d26;
+  color: white;
+}
+.wizard-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+}
+.wizard-intro {
+  margin-bottom: 20px;
+}
+.wizard-step > h2 {
+  margin-bottom: 12px;
+}
+.auth-switch {
+  display: flex;
+  gap: 12px;
+  margin: 20px 0;
+}
+[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+@media (max-width: 700px) {
+  .compact-catalog {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .catalog-card summary {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 14px;
+  }
+  .catalog-card summary > span:first-child {
+    flex-basis: 100%;
+  }
+  .cart-dock {
+    padding: 10px;
+    gap: 8px;
+    bottom: 8px;
+    font-size: 12px;
+  }
+  .cart-dock .button {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+  .checkout-compact .contact-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cart-review .cart-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cart-review .quantity-control {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+  }
+  dialog.ui-dialog {
+    padding: 16px;
+  }
+  .queue-card {
+    padding: 14px;
+  }
+  .session-profile {
+    margin: 0;
+  }
+  .dialog-heading {
+    align-items: start;
+  }
+}
+
+.cart-page {
+  padding-block: 24px;
+}
+.cart-page .back-link {
+  margin-bottom: 12px;
+}
+.cart-page .checkout-steps {
+  margin-block: 12px;
+}
+.cart-review {
+  padding: 20px;
+  margin-top: 16px;
+}
+.cart-review #cart-items {
+  max-height: clamp(160px, calc(100dvh - 470px), 560px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cart-review .cart-item {
+  padding-block: 12px;
+}
+.cart-review .empty-cart {
+  padding: 24px 0;
+}
+.payment-choice {
+  margin-bottom: 14px !important;
+}
+
+.cart-page > .muted {
+  font-size: 13px;
+  line-height: 1.4;
+}

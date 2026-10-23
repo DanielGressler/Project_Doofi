@@ -2,6 +2,7 @@ import { $, api, el, feedback } from "./browser";
 import { money, statusLabels, formatDate, type Order } from "../lib/types";
 import type { OrderSummary } from "../lib/dashboard";
 import { createPoller } from "./poller";
+import { createOrderQueue, type QueueEntry } from "./order-queue";
 type Row = Pick<
   Order,
   | "id"
@@ -63,9 +64,10 @@ function render() {
   }
 }
 async function load() {
-  const { orders, summary } = await api<{
+  const { orders, summary, queue } = await api<{
     orders: Row[];
     summary: OrderSummary;
+    queue: QueueEntry[];
   }>("painel/visao-geral");
   rows = orders;
   $("#stat-total").textContent = String(summary.total_orders);
@@ -76,6 +78,7 @@ async function load() {
   $("#extra-stats").textContent =
     `Recusados ou cancelados: ${summary.cancelled} · Mais pedido: ${summary.topItem ? summary.topItem.title + " (" + summary.topItem.units + " unidades)" : "sem dados"}`;
   render();
+  orderQueue.update(queue);
   feedback("");
 }
 const canRefresh = () =>
@@ -84,6 +87,7 @@ const poller = createPoller(load, {
   enabled: canRefresh,
   onError: (error) => feedback((error as Error).message, true),
 });
+const orderQueue = createOrderQueue(() => poller.refresh(true));
 $("#refresh-orders").onclick = () => void poller.refresh();
 $("#status-filter").onchange = render;
 void poller.refresh();

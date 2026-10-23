@@ -1,3 +1,81 @@
 ---
-return Astro.redirect(`/loja/${Astro.params.slug}#carrinho`);
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getStore, getProducts } from "../../../lib/catalog";
+import { publicProduct } from "../../../lib/public-data";
+let store;
+try {
+  store = await getStore(env.DB, Astro.params.slug!);
+} catch {
+  return Astro.redirect("/404");
+}
+const products = (await getProducts(env.DB, store.id)).map(publicProduct);
 ---
+
+<Layout title="Seu carrinho" slug={store.slug} appearance={store}>
+  <div
+    id="store-app"
+    class="wrap page-wrap cart-page"
+    data-slug={store.slug}
+    data-products={JSON.stringify(products)}
+    data-open={String(!!store.is_open)}
+  >
+    <a class="back-link" href={`/loja/${store.slug}#cardapio`}>
+      ← Continuar escolhendo
+    </a>
+    <ol class="checkout-steps" aria-label="Etapas do pedido">
+      <li aria-current="step">1. Carrinho</li>
+      <li>2. Dados e entrega</li>
+      <li>3. Acompanhamento</li>
+    </ol>
+    <h1>
+      Revise seu carrinho<span class="accent">.</span>
+    </h1>
+    <p class="muted">{store.title} · Etapa 1 de 3</p>
+    {!store.is_open && (
+      <p class="notice">
+        A loja está fechada. Você pode revisar os itens e voltar quando ela
+        abrir.
+      </p>
+    )}
+    <section class="card cart-review" aria-label="Itens do carrinho">
+      <div
+        id="cart-items"
+        role="region"
+        aria-label="Produtos para revisão"
+        tabindex="0"
+      ></div>
+      <div id="cart-empty" class="empty-cart">
+        <h2>Seu carrinho está vazio</h2>
+        <a class="inline-link" href={`/loja/${store.slug}#cardapio`}>
+          Escolher produtos
+        </a>
+      </div>
+      <div id="cart-totals" hidden>
+        <div class="total-row">
+          <span>Subtotal</span>
+          <strong id="cart-subtotal"></strong>
+        </div>
+        <p class="small muted">
+          Frete e dados de envio na próxima etapa. Nenhum pagamento real.
+        </p>
+        <a
+          id="cart-next"
+          class="button button-primary button-full"
+          href={`/loja/${store.slug}/checkout`}
+        >
+          Avançar para dados e entrega →
+        </a>
+      </div>
+      <p
+        id="cart-feedback"
+        class="feedback"
+        role="status"
+        aria-live="polite"
+      ></p>
+    </section>
+  </div>
+</Layout>
+<script>
+  import "../../../scripts/store";
+</script>

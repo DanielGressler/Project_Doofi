@@ -2,6 +2,7 @@
 import { env } from "cloudflare:workers";
 import Layout from "../../../layouts/Layout.astro";
 import ProductArt from "../../../components/ProductArt.astro";
+import StoreProduct from "../../../components/StoreProduct.astro";
 import HeroArt from "../../../components/HeroArt.astro";
 import Icon from "../../../components/Icon.astro";
 import { getStore, getProducts } from "../../../lib/catalog";
@@ -109,7 +110,7 @@ const usesFreshIllustration = store.theme === "green";
         </div>
       </div>
     </section>
-    <div class="shop-layout">
+    <div class="shop-layout menu-only">
       <section id="cardapio" aria-labelledby="menu-heading">
         <div class="section-top">
           <div>
@@ -142,53 +143,34 @@ const usesFreshIllustration = store.theme === "green";
             </button>
           ))}
         </div>
-        <div class="product-grid">
-          {products.map((p) => (
-            <article
-              class:list={["product-card", { unavailable: !p.orderable }]}
-              data-product-category={p.category}
-            >
-              <div class="product-picture">
-                {p.image_id ? (
-                  <img
-                    class="product-photo"
-                    src={`/media/${p.image_id}`}
-                    alt={p.title}
-                    width="960"
-                    height="720"
-                    loading="lazy"
-                  />
-                ) : (
-                  <ProductArt kind={p.image} />
-                )}
-                {!p.orderable && (
-                  <span class="unavailable-label">Indisponível</span>
-                )}
-              </div>
-              <div class="product-content">
-                <span class="product-category">{p.category}</span>
-                <h3>{p.title}</h3>
-                <p>{p.description}</p>
-                {p.is_combo === 1 && (
-                  <p class="combo-composition">
-                    Inclui: {p.components.map((c) => c.title).join(" + ")}
-                  </p>
-                )}
-                <div class="product-bottom">
-                  <strong>{money(p.price)}</strong>
-                  <button
-                    class="add-button"
-                    data-add={p.id}
-                    aria-label={`Adicionar ${p.title}`}
-                    disabled={!p.orderable || !store.is_open}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
+        {[false, true].map((combo) => (
+          <section
+            class="menu-section"
+            data-menu-section
+            aria-labelledby={combo ? "store-combos" : "store-products"}
+          >
+            <h3 id={combo ? "store-combos" : "store-products"}>
+              {combo ? "Combos" : "Produtos individuais"}
+            </h3>
+            <div class="product-grid">
+              {products
+                .filter((p) => !!p.is_combo === combo)
+                .map((p) => (
+                  <StoreProduct product={p} open={!!store.is_open} />
+                ))}
+            </div>
+            {!products.some((p) => !!p.is_combo === combo) && (
+              <p class="muted small">
+                {combo
+                  ? "Esta loja ainda não anunciou combos."
+                  : "Em breve, novos produtos."}
+              </p>
+            )}
+          </section>
+        ))}
+        <p id="filter-empty" class="notice" hidden>
+          Nenhum produto ou combo nesta categoria.
+        </p>
         <div class="handmade-note">
           <span class="mini-spark">✳︎</span>
           <div>
@@ -200,51 +182,22 @@ const usesFreshIllustration = store.theme === "green";
           </div>
         </div>
       </section>
-      <aside id="carrinho" class="cart-panel" aria-labelledby="cart-heading">
-        <div class="cart-title">
-          <h2 id="cart-heading">
-            <Icon name="bag" />
-            Seu pedido
-          </h2>
-          <span class="cart-count" data-cart-count>
-            0
-          </span>
-        </div>
-        <div id="cart-items"></div>
-        <div id="cart-empty" class="empty-cart">
-          <div class="empty-bag">
-            <Icon name="bag" size={36} />
-          </div>
-          <h3>Que tal algo gostoso?</h3>
-          <p>
-            Adicione seus favoritos e<br />
-            monte seu pedido por aqui.
-          </p>
-        </div>
-        <div id="cart-totals" hidden>
-          <div class="total-row">
-            <span>Subtotal</span>
-            <strong id="cart-subtotal"></strong>
-          </div>
-          <p class="small muted">Entrega e total confirmados no checkout.</p>
-          <a
-            class="button button-primary button-full"
-            href={`/loja/${store.slug}/checkout`}
-          >
-            Continuar pedido <Icon name="arrow" size={18} />
-          </a>
-        </div>
-        <div class="cart-footnote">
-          <Icon name="check" size={16} /> Sem conta. Direto com a loja.
-        </div>
-        <p
-          id="cart-feedback"
-          class="feedback"
-          role="status"
-          aria-live="polite"
-        ></p>
-      </aside>
     </div>
+    <div class="cart-dock" aria-label="Resumo do carrinho">
+      <span>
+        <strong data-cart-count>0</strong> itens ·{" "}
+        <strong id="cart-subtotal">R$ 0,00</strong>
+      </span>
+      <a class="button button-primary" href={`/loja/${store.slug}/carrinho`}>
+        Continuar pedido →
+      </a>
+    </div>
+    <p
+      id="cart-feedback"
+      class="cart-announcement"
+      role="status"
+      aria-live="polite"
+    ></p>
     <section class="store-details">
       <div>
         <div class="eyebrow">PERTO DE VOCÊ</div>

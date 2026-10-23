@@ -11,6 +11,8 @@ import {
 const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
   .bind(Astro.locals.session!.store_id)
   .first<Store>())!;
+const tutorial =
+  Astro.url.searchParams.get("tutorial") === "1" || !store.setup_complete;
 ---
 
 <PanelLayout title="Minha loja" active="store">
@@ -23,215 +25,285 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
       <p>Organize as informações e a entrega da sua loja fictícia.</p>
     </div>
   </div>
+  {tutorial ? (
+    <div class="wizard-intro">
+      <h2>Vamos montar sua loja, passo a passo</h2>
+      <p>
+        Preencha os dados fictícios, escolha a entrega e deixe o visual com a
+        sua cara. As alterações serão salvas ao concluir.
+      </p>
+    </div>
+  ) : (
+    <a class="inline-link" href="/painel/loja?tutorial=1">
+      Personalizar com o assistente →
+    </a>
+  )}
   <form
     id="store-form"
+    data-tutorial={String(tutorial)}
     data-version={store.version}
     data-banner-id={store.banner_id ?? ""}
     class="card"
   >
-    <div class="form-grid">
-      <label class="field">
-        <span>Nome da loja</span>
-        <input
-          name="title"
-          value={store.title}
-          minlength="2"
-          maxlength="80"
-          required
-        />
-      </label>
-      <label class="field">
-        <span>Contato comercial fictício</span>
-        <input
-          name="contact"
-          value={store.contact}
-          minlength="4"
-          maxlength="80"
-          required
-        />
-      </label>
-      <label class="field full">
-        <span>Descrição</span>
-        <textarea
-          name="description"
-          minlength="2"
-          maxlength="300"
-          required
-        >{store.description}</textarea>
-      </label>
-      <label class="field full">
-        <span>Horários informados ao comprador</span>
-        <input
-          name="hours"
-          value={store.hours}
-          minlength="3"
-          maxlength="120"
-          required
-        />
-        <small>
-          A abertura é controlada pelo botão de disponibilidade abaixo. A P1 não
-          interpreta automaticamente o texto de horários.
-        </small>
-      </label>
-      <label class="field full">
-        <span>Endereço fictício de retirada</span>
-        <input
-          name="pickup_address"
-          value={store.pickup_address}
-          minlength="4"
-          maxlength="160"
-          required
-        />
-      </label>
-      <label class="checkbox full">
-        <input
-          type="checkbox"
-          name="has_own_delivery"
-          checked={!!store.has_own_delivery}
-        />
-        <span>Possui entregador próprio</span>
-      </label>
-      <label
-        class="field"
-        id="fixed-delivery-field"
-        hidden={!store.has_own_delivery}
-      >
-        <span>Taxa fixa de entrega (R$)</span>
-        <input
-          type="number"
-          name="delivery_fee"
-          value={(store.delivery_fee / 100).toFixed(2)}
-          min="0"
-          max="1000"
-          step="0.01"
-          required={!!store.has_own_delivery}
-        />
-      </label>
-      <label class="field">
-        <span>Bairros atendidos</span>
-        <input
-          name="neighborhoods"
-          value={store.neighborhoods}
-          minlength="2"
-          maxlength="300"
-          required
-        />
-        <small>
-          Separe os bairros por vírgulas. Sem mapas ou geolocalização.
-        </small>
-      </label>
-    </div>
-    <fieldset class="appearance-editor">
-      <legend>Personalização da loja</legend>
-      <p>
-        Personalize a página inteira: cabeçalho, banner, filtros, produtos,
-        carrinho e rodapé. O mesmo visual acompanha o checkout e o pedido.
-      </p>
+    {tutorial && (
+      <ol class="wizard-progress" aria-label="Etapas da configuração">
+        {["Identidade", "Entrega", "Visual", "Concluir"].map((title, i) => (
+          <li
+            data-wizard-indicator={i}
+            aria-current={i === 0 ? "step" : undefined}
+          >
+            {i + 1}. {title}
+          </li>
+        ))}
+      </ol>
+    )}
+    <section class="wizard-step" data-wizard-step="0">
+      <h2>Identidade da loja</h2>
       <div class="form-grid">
         <label class="field">
-          <span>Paleta de cores</span>
-          <select name="palette" aria-label="Paleta de cores">
-            {Object.entries(palettes).map(([key, value]) => (
-              <option value={key} selected={store.palette === key}>
-                {value.label}
-              </option>
-            ))}
-          </select>
+          <span>Nome da loja</span>
+          <input
+            name="title"
+            value={store.title}
+            minlength="2"
+            maxlength="80"
+            required
+          />
         </label>
         <label class="field">
-          <span>Estilo das fontes</span>
-          <select name="font" aria-label="Estilo das fontes">
-            {Object.entries(fonts).map(([key, value]) => (
-              <option value={key} selected={store.font === key}>
-                {value.label}
-              </option>
-            ))}
-          </select>
+          <span>Contato comercial fictício</span>
+          <input
+            name="contact"
+            value={store.contact}
+            minlength="4"
+            maxlength="80"
+            required
+          />
         </label>
         <label class="field full">
-          <span>Layout da página</span>
-          <select name="layout" aria-label="Layout da página">
-            {Object.entries(layouts).map(([key, value]) => (
-              <option value={key} selected={store.layout === key}>
-                {value.label} — {value.description}
-              </option>
-            ))}
-          </select>
-          <small>
-            O layout muda a apresentação da loja inteira. Cores e fontes podem
-            ser escolhidas separadamente.
-          </small>
+          <span>Descrição</span>
+          <textarea
+            name="description"
+            minlength="2"
+            maxlength="300"
+            required
+          >{store.description}</textarea>
         </label>
-        <div
-          class="full appearance-preview store-theme"
-          id="appearance-preview"
-          data-layout={store.layout}
-          style={appearanceStyles(store)}
-          aria-label="Prévia da página da loja"
-        >
-          <div class="appearance-preview-header">
-            <strong>{store.title}</strong>
-            <span>Seu pedido</span>
-          </div>
-          <div class="appearance-preview-hero">
-            <h2>Sua loja, do seu jeito</h2>
-            <p>Banner, cores e fontes em toda a página.</p>
-            <span class="preview-button">Conheça o cardápio</span>
-          </div>
-          <div class="appearance-preview-layout">
-            <div class="appearance-preview-products">
-              <div class="appearance-preview-card">
-                <h3>Produto da casa</h3>
-                <p>Descrição com a fonte escolhida.</p>
-                <strong>R$ 24,00</strong>
-              </div>
-              <div class="appearance-preview-card">
-                <h3>Combo especial</h3>
-                <p>Seu cardápio organizado.</p>
-                <strong>R$ 29,00</strong>
-              </div>
-            </div>
-            <div class="appearance-preview-card">
-              <h3>Seu pedido</h3>
-              <p>O carrinho também segue seu visual.</p>
-            </div>
-          </div>
-          <div class="appearance-preview-footer">
-            Contato e informações da loja
-          </div>
-        </div>
         <label class="field full">
-          <span>Banner da loja (opcional)</span>
-          <input type="file" name="banner" accept="image/jpeg,image/png" />
+          <span>Horários informados ao comprador</span>
+          <input
+            name="hours"
+            value={store.hours}
+            minlength="3"
+            maxlength="120"
+            required
+          />
           <small>
-            JPG ou PNG de até 2 MB e 4 megapixels. Ajustamos para 1600 × 600
-            pixels com recorte central. Prefira uma imagem horizontal.
+            A abertura é controlada pelo botão de disponibilidade abaixo. A P1
+            não interpreta automaticamente o texto de horários.
           </small>
         </label>
-        {store.banner_id && (
-          <div class="full">
-            <img
-              class="banner-preview"
-              src={`/media/${store.banner_id}`}
-              alt="Banner atual da loja"
-              width="1600"
-              height="600"
-            />
-            <label class="checkbox">
-              <input type="checkbox" name="remove_banner" />
-              <span>Remover banner e voltar à ilustração</span>
-            </label>
-          </div>
-        )}
       </div>
-    </fieldset>
-    <label class="checkbox">
-      <input type="checkbox" name="is_open" checked={!!store.is_open} />
-      <span>Loja aberta para novos pedidos de teste</span>
-    </label>
-    <button type="submit" class="button button-primary">
-      Salvar configurações
-    </button>
+    </section>
+    <section class="wizard-step" data-wizard-step="1" hidden={tutorial}>
+      <h2>Retirada e entrega</h2>
+      <div class="form-grid">
+        <label class="field full">
+          <span>Endereço fictício de retirada</span>
+          <input
+            name="pickup_address"
+            value={store.pickup_address}
+            minlength="4"
+            maxlength="160"
+            required
+          />
+        </label>
+        <label class="checkbox full">
+          <input
+            type="checkbox"
+            name="has_own_delivery"
+            checked={!!store.has_own_delivery}
+          />
+          <span>Possui entregador próprio</span>
+        </label>
+        <label
+          class="field"
+          id="fixed-delivery-field"
+          hidden={!store.has_own_delivery}
+        >
+          <span>Taxa fixa de entrega (R$)</span>
+          <input
+            type="number"
+            name="delivery_fee"
+            value={(store.delivery_fee / 100).toFixed(2)}
+            min="0"
+            max="1000"
+            step="0.01"
+            required={!!store.has_own_delivery}
+          />
+        </label>
+        <label class="field">
+          <span>Bairros atendidos</span>
+          <input
+            name="neighborhoods"
+            value={store.neighborhoods}
+            minlength="2"
+            maxlength="300"
+            required
+          />
+          <small>
+            Separe os bairros por vírgulas. Sem mapas ou geolocalização.
+          </small>
+        </label>
+      </div>
+    </section>
+    <section class="wizard-step" data-wizard-step="2" hidden={tutorial}>
+      <fieldset class="appearance-editor">
+        <legend>Personalização da loja</legend>
+        <p>
+          Personalize a página inteira: cabeçalho, banner, filtros, produtos,
+          carrinho e rodapé. O mesmo visual acompanha o checkout e o pedido.
+        </p>
+        <div class="form-grid">
+          <label class="field">
+            <span>Paleta de cores</span>
+            <select name="palette" aria-label="Paleta de cores">
+              {Object.entries(palettes).map(([key, value]) => (
+                <option value={key} selected={store.palette === key}>
+                  {value.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label class="field">
+            <span>Estilo das fontes</span>
+            <select name="font" aria-label="Estilo das fontes">
+              {Object.entries(fonts).map(([key, value]) => (
+                <option value={key} selected={store.font === key}>
+                  {value.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label class="field full">
+            <span>Layout da página</span>
+            <select name="layout" aria-label="Layout da página">
+              {Object.entries(layouts).map(([key, value]) => (
+                <option value={key} selected={store.layout === key}>
+                  {value.label} — {value.description}
+                </option>
+              ))}
+            </select>
+            <small>
+              O layout muda a apresentação da loja inteira. Cores e fontes podem
+              ser escolhidas separadamente.
+            </small>
+          </label>
+          <div
+            class="full appearance-preview store-theme"
+            id="appearance-preview"
+            data-layout={store.layout}
+            style={appearanceStyles(store)}
+            aria-label="Prévia da página da loja"
+          >
+            <div class="appearance-preview-header">
+              <strong>{store.title}</strong>
+              <span>Seu pedido</span>
+            </div>
+            <div class="appearance-preview-hero">
+              <h2>Sua loja, do seu jeito</h2>
+              <p>Banner, cores e fontes em toda a página.</p>
+              <span class="preview-button">Conheça o cardápio</span>
+            </div>
+            <div class="appearance-preview-layout">
+              <div class="appearance-preview-products">
+                <div class="appearance-preview-card">
+                  <h3>Produto da casa</h3>
+                  <p>Descrição com a fonte escolhida.</p>
+                  <strong>R$ 24,00</strong>
+                </div>
+                <div class="appearance-preview-card">
+                  <h3>Combo especial</h3>
+                  <p>Seu cardápio organizado.</p>
+                  <strong>R$ 29,00</strong>
+                </div>
+              </div>
+              <div class="appearance-preview-card">
+                <h3>Seu pedido</h3>
+                <p>O carrinho também segue seu visual.</p>
+              </div>
+            </div>
+            <div class="appearance-preview-footer">
+              Contato e informações da loja
+            </div>
+          </div>
+          <label class="field full">
+            <span>Banner da loja (opcional)</span>
+            <input type="file" name="banner" accept="image/jpeg,image/png" />
+            <small>
+              JPG ou PNG de até 2 MB e 4 megapixels. Ajustamos para 1600 × 600
+              pixels com recorte central. Prefira uma imagem horizontal.
+            </small>
+          </label>
+          {store.banner_id && (
+            <div class="full">
+              <img
+                class="banner-preview"
+                src={`/media/${store.banner_id}`}
+                alt="Banner atual da loja"
+                width="1600"
+                height="600"
+              />
+              <label class="checkbox">
+                <input type="checkbox" name="remove_banner" />
+                <span>Remover banner e voltar à ilustração</span>
+              </label>
+            </div>
+          )}
+        </div>
+      </fieldset>
+    </section>
+    <section class="wizard-step" data-wizard-step="3" hidden={tutorial}>
+      {tutorial && (
+        <>
+          <h2>Tudo pronto para começar</h2>
+          <p>
+            Salve sua personalização e cadastre os primeiros produtos. Sua loja
+            tem um catálogo e pedidos próprios.
+          </p>
+          <p id="wizard-review" class="notice"></p>
+        </>
+      )}
+      <label class="checkbox">
+        <input type="checkbox" name="is_open" checked={!!store.is_open} />
+        <span>Loja aberta para novos pedidos de teste</span>
+      </label>
+    </section>
+    <div class="wizard-actions">
+      {tutorial && (
+        <button
+          type="button"
+          class="button button-quiet"
+          id="wizard-back"
+          disabled
+        >
+          ← Voltar
+        </button>
+      )}
+      {tutorial && (
+        <button type="button" class="button button-primary" id="wizard-next">
+          Próximo →
+        </button>
+      )}
+      <button
+        type="submit"
+        class="button button-primary"
+        id="save-store"
+        hidden={tutorial}
+      >
+        {tutorial ? "Concluir e cadastrar produtos →" : "Salvar configurações"}
+      </button>
+    </div>
     <p id="feedback" class="feedback" role="alert" aria-live="polite"></p>
   </form>
 </PanelLayout>
@@ -241,6 +313,45 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
   import { appearanceStyles } from "../../lib/appearance";
   import type { StoreAppearance } from "../../lib/types";
   const form = $<HTMLFormElement>("#store-form");
+  const tutorial = form.dataset.tutorial === "true";
+  let step = 0;
+  const steps = [...form.querySelectorAll<HTMLElement>("[data-wizard-step]")];
+  function showStep(next: number) {
+    step = next;
+    steps.forEach((node, i) => (node.hidden = i !== step));
+    document
+      .querySelectorAll<HTMLElement>("[data-wizard-indicator]")
+      .forEach((node, i) => {
+        if (i === step) node.setAttribute("aria-current", "step");
+        else node.removeAttribute("aria-current");
+      });
+    $<HTMLButtonElement>("#wizard-back").disabled = step === 0;
+    $("#wizard-next").hidden = step === 3;
+    $("#save-store").hidden = step !== 3;
+    $("#wizard-review").textContent =
+      `${$<HTMLInputElement>('[name="title"]', form).value} · ${$<HTMLSelectElement>('[name="palette"]', form).selectedOptions[0].text} · ${$<HTMLSelectElement>('[name="font"]', form).selectedOptions[0].text}`;
+    const heading = $("h2, legend", steps[step]);
+    heading.tabIndex = -1;
+    heading.focus();
+  }
+  function validateStep(index: number) {
+    const invalid = [
+      ...steps[index].querySelectorAll<
+        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      >("input, select, textarea"),
+    ].find((field) => !field.checkValidity());
+    if (!invalid) return true;
+    showStep(index);
+    invalid.reportValidity();
+    return false;
+  }
+  if (tutorial) {
+    form.noValidate = true;
+    $("#wizard-next").onclick = () => {
+      if (validateStep(step)) showStep(step + 1);
+    };
+    $("#wizard-back").onclick = () => showStep(step - 1);
+  }
   const own = $<HTMLInputElement>('[name="has_own_delivery"]', form),
     fee = $<HTMLInputElement>('[name="delivery_fee"]', form);
   function deliveryChanged() {
@@ -265,6 +376,13 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
   preview();
   form.onsubmit = (event) => {
     event.preventDefault();
+    if (tutorial) {
+      if (step < 3) {
+        if (validateStep(step)) showStep(step + 1);
+        return;
+      }
+      if (!steps.every((_, i) => validateStep(i))) return;
+    }
     void busy($<HTMLButtonElement>('button[type="submit"]', form), async () => {
       const fields = new FormData(form);
       let bannerId: string | null = form.dataset.bannerId || null;
@@ -288,6 +406,7 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
         "painel/loja",
         {
           ...Object.fromEntries(fields),
+          finishSetup: tutorial,
           delivery_fee: own.checked
             ? Math.round(Number(fields.get("delivery_fee")) * 100)
             : Math.round(Number(fee.value) * 100),
@@ -302,6 +421,7 @@ const store = (await env.DB.prepare("SELECT * FROM stores WHERE id=?")
       form.dataset.version = String(Number(form.dataset.version) + 1);
       form.dataset.bannerId = bannerId ?? "";
       feedback("Configurações salvas. A loja já mostra as novas informações.");
+      if (tutorial) location.assign("/painel/catalogo");
     });
   };
 </script>

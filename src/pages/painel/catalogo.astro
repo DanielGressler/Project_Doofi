@@ -1,5 +1,6 @@
 ---
 import PanelLayout from "../../layouts/PanelLayout.astro";
+import { money } from "../../lib/types";
 import ProductEditor from "../../components/ProductEditor.astro";
 import { env } from "cloudflare:workers";
 import { getProducts } from "../../lib/catalog";
@@ -16,12 +17,12 @@ const products = await getProducts(env.DB, Astro.locals.session!.store_id);
       <p>Produtos e combos organizados por categoria.</p>
     </div>
     <div class="editor-actions">
-      <a class="button button-primary" href="#new-product">
+      <button class="button button-primary" data-open-dialog="product-dialog">
         + Novo produto
-      </a>
-      <a class="button button-quiet" href="#new-combo">
+      </button>
+      <button class="button button-quiet" data-open-dialog="combo-dialog">
         + Novo combo
-      </a>
+      </button>
     </div>
   </div>
   <p class="notice">
@@ -41,15 +42,74 @@ const products = await getProducts(env.DB, Astro.locals.session!.store_id);
       <option value={category} />
     ))}
   </datalist>
-  <div class="product-editor">
-    {products.map((product) => (
-      <ProductEditor product={product} products={products} />
-    ))}
-    <ProductEditor products={products} />
-    <ProductEditor products={products} combo />
-  </div>
+  {[false, true].map((combo) => (
+    <section
+      class="catalog-section"
+      aria-labelledby={combo ? "combos-title" : "products-title"}
+    >
+      <h2 id={combo ? "combos-title" : "products-title"}>
+        {combo ? "Combos" : "Produtos individuais"}{" "}
+        <span class="muted small">
+          ({products.filter((p) => !!p.is_combo === combo).length})
+        </span>
+      </h2>
+      <div class="product-editor compact-catalog">
+        {products
+          .filter((p) => !!p.is_combo === combo)
+          .map((product) => (
+            <details class="catalog-card">
+              <summary>
+                <span>
+                  <strong>{product.title}</strong>
+                  <small>
+                    {product.category} · {money(product.price)}
+                  </small>
+                </span>
+                <span class="badge">
+                  {product.orderable ? "Disponível" : "Indisponível"}
+                </span>
+                <span class="expand-label" aria-hidden="true">
+                  Editar
+                </span>
+              </summary>
+              <ProductEditor product={product} products={products} />
+            </details>
+          ))}
+      </div>
+      {!products.some((p) => !!p.is_combo === combo) && (
+        <p class="muted small">
+          {combo
+            ? "Crie um combo reunindo dois produtos da sua loja."
+            : "Seu primeiro produto aparecerá aqui."}
+        </p>
+      )}
+    </section>
+  ))}
+  {[false, true].map((combo) => (
+    <dialog
+      class="ui-dialog editor-dialog"
+      id={combo ? "combo-dialog" : "product-dialog"}
+      aria-labelledby={combo ? "new-combo-title" : "new-product-title"}
+    >
+      <div class="dialog-heading">
+        <h2 id={combo ? "new-combo-title" : "new-product-title"}>
+          {combo ? "Criar combo" : "Criar produto"}
+        </h2>
+        <button
+          type="button"
+          class="button button-quiet"
+          data-close-dialog
+          aria-label="Fechar criação"
+        >
+          Fechar ×
+        </button>
+      </div>
+      <ProductEditor products={products} combo={combo} />
+    </dialog>
+  ))}
   <p id="feedback" class="feedback" role="alert"></p>
 </PanelLayout>
 <script>
+  import "../../scripts/dialogs";
   import "../../scripts/catalog-editor";
 </script>

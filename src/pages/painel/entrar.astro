@@ -13,6 +13,67 @@ import Layout from "../../layouts/Layout.astro";
         <p class="small muted">
           Entre para atender os pedidos e cuidar da sua loja.
         </p>
+        <div class="auth-switch">
+          <button
+            class="button button-quiet"
+            id="show-login"
+            aria-pressed="true"
+          >
+            Entrar
+          </button>
+          <button
+            class="button button-quiet"
+            id="show-register"
+            aria-pressed="false"
+          >
+            Criar minha loja
+          </button>
+        </div>
+        <form id="register-form" hidden>
+          <label class="field">
+            <span>Nome da nova loja</span>
+            <input
+              name="title"
+              required
+              minlength="2"
+              maxlength="80"
+              placeholder="Ex.: Doces da Vila"
+            />
+          </label>
+          <label class="field">
+            <span>E-mail da nova loja</span>
+            <input
+              type="email"
+              name="email"
+              required
+              maxlength="120"
+              autocomplete="username"
+              placeholder="minhaloja@exemplo.invalid"
+            />
+          </label>
+          <label class="field">
+            <span>Senha para a nova loja</span>
+            <input
+              type="password"
+              name="password"
+              required
+              minlength="8"
+              maxlength="128"
+              autocomplete="new-password"
+            />
+            <small>Use uma senha inventada com pelo menos 8 caracteres.</small>
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" name="syntheticData" required />
+            <span>
+              Estou criando uma loja de teste com dados e senha fictícios.
+            </span>
+          </label>
+          <button class="button button-primary button-full" type="submit">
+            Criar loja e personalizar →
+          </button>
+          <p id="register-feedback" class="feedback" role="alert"></p>
+        </form>
         <form id="login-form">
           <label class="field">
             <span>E-mail de demonstração</span>
@@ -60,20 +121,57 @@ import Layout from "../../layouts/Layout.astro";
 </Layout>
 <script>
   import { $, api, busy } from "../../scripts/browser";
+  const loginForm = $<HTMLFormElement>("#login-form"),
+    registerForm = $<HTMLFormElement>("#register-form");
+  function showRegister(register: boolean) {
+    loginForm.hidden = register;
+    registerForm.hidden = !register;
+    $("#show-login").setAttribute("aria-pressed", String(!register));
+    $("#show-register").setAttribute("aria-pressed", String(register));
+    $<HTMLInputElement>("input", register ? registerForm : loginForm).focus();
+  }
+  $("#show-login").onclick = () => showRegister(false);
+  $("#show-register").onclick = () => showRegister(true);
+  registerForm.onsubmit = async (event) => {
+    event.preventDefault();
+    const button = $<HTMLButtonElement>('button[type="submit"]', registerForm);
+    button.disabled = true;
+    try {
+      const fields = new FormData(registerForm);
+      const result = await api<{ next: string }>("register", {
+        ...Object.fromEntries(fields),
+        syntheticData: fields.get("syntheticData") === "on",
+      });
+      location.assign(result.next);
+    } catch (error) {
+      $("#register-feedback").textContent = (error as Error).message;
+    } finally {
+      button.disabled = false;
+    }
+  };
   document.querySelectorAll<HTMLButtonElement>("[data-email]").forEach(
     (button) =>
       (button.onclick = () => {
-        $<HTMLInputElement>('[name="email"]').value = button.dataset.email!;
-        $<HTMLInputElement>('[name="password"]').value = "demo-doofi-P1!";
-        $<HTMLInputElement>('[name="email"]').focus();
+        showRegister(false);
+        $<HTMLInputElement>('[name="email"]', loginForm).value =
+          button.dataset.email!;
+        $<HTMLInputElement>('[name="password"]', loginForm).value =
+          "demo-doofi-P1!";
+        $<HTMLInputElement>('[name="email"]', loginForm).focus();
       }),
   );
   $<HTMLFormElement>("#login-form").onsubmit = (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget as HTMLFormElement);
-    void busy($<HTMLButtonElement>('button[type="submit"]'), async () => {
-      await api("login", Object.fromEntries(form));
-      location.assign("/painel/pedidos");
-    });
+    void busy(
+      $<HTMLButtonElement>('#login-form button[type="submit"]'),
+      async () => {
+        const result = await api<{ next: string }>(
+          "login",
+          Object.fromEntries(form),
+        );
+        location.assign(result.next);
+      },
+    );
   };
 </script>

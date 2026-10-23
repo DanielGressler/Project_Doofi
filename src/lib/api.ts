@@ -1,5 +1,5 @@
 import { AppError, body, originCheck, rateLimit } from "./core";
-import { getSession, login, logout, requireSession } from "./auth";
+import { getSession, login, logout, register, requireSession } from "./auth";
 import { getProducts, getStore, saveProduct, saveStore } from "./catalog";
 import {
   confirmSimulatedPayment,
@@ -76,7 +76,18 @@ export async function handleApi(
     if (path === "login" && method === "POST") {
       await rateLimit(db, request, "login", 10);
       const result = await login(db, request, await body(request));
-      return json({ authenticated: true, csrfToken: result.csrfToken }, 200, {
+      return json(
+        { authenticated: true, csrfToken: result.csrfToken, next: result.next },
+        200,
+        {
+          "Set-Cookie": result.setCookie,
+        },
+      );
+    }
+    if (path === "register" && method === "POST") {
+      await rateLimit(db, request, "register", 5);
+      const result = await register(db, request, await body(request));
+      return json({ authenticated: true, next: result.next }, 201, {
         "Set-Cookie": result.setCookie,
       });
     }

@@ -58,3 +58,11 @@ Token e nonce de comprador são específicos ao pedido. Eles não autenticam no 
 `PATCH /painel/loja` aceita `palette:terracotta|forest|ocean|plum`, `font:editorial|simple|classic`, `layout:cozy|compact|showcase`, `banner_id` e `has_own_delivery` booleano, além dos campos de configuração existentes. Campos de aparência omitidos preservam o valor atual. Opções fora dos conjuntos permitidos retornam 422. O layout é persistido pela migração 0003.
 
 `GET /pedidos/:token` inclui `palette`, `font` e `layout` no objeto público `store` para aplicar a aparência também ao acompanhamento. A resposta continua sem contato ou endereço do comprador.
+
+## Cadastro e fila da demonstração
+
+`POST /register` recebe `title`, `email`, `password` (8–128 caracteres) e `syntheticData: true`. A mesma proteção de endereço/Cloudflare Access e origem do login se aplica, com limite próprio de chamadas. Empresa, usuário, vínculo de proprietário, sessão e auditoria são criados em uma transação. IDs, slug e papel são gerados pelo servidor; campos de escopo enviados pelo navegador são ignorados. A resposta inclui `next` para o assistente e cookie HttpOnly. `POST /login` também retorna `next`, preservando o caminho dos usuários existentes.
+
+`GET /painel/visao-geral` inclui `queue`, até 50 pedidos que aguardam decisão, mais antigos primeiro (desempate pela ordem de inserção). A fila tem índice parcial próprio e é independente dos 100 pedidos recentes. O próximo lote aparece à medida que decisões são tomadas. Os itens e o endereço são buscados apenas para o pedido em foco na rota autenticada já existente. `QUOTE_PROPOSED` aguarda o comprador e volta à fila como `QUOTE_ACCEPTED`.
+
+`PATCH /painel/loja` aceita `finishSetup: true`, somente para o proprietário e com a mesma versão otimista da configuração; conclui o assistente sem mudar o escopo ou as credenciais. A migração 0007 considera lojas anteriores já configuradas.

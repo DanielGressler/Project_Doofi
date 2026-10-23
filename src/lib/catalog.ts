@@ -302,7 +302,7 @@ export async function saveStore(
   const result = await db.batch([
     db
       .prepare(
-        "UPDATE stores SET title=?,description=?,contact=?,hours=?,pickup_address=?,neighborhoods=?,delivery_fee=?,is_open=?,has_own_delivery=?,palette=?,font=?,banner_id=?,layout=?,version=version+1 WHERE id=? AND version=?",
+        "UPDATE stores SET title=?,description=?,contact=?,hours=?,pickup_address=?,neighborhoods=?,delivery_fee=?,is_open=?,has_own_delivery=?,palette=?,font=?,banner_id=?,layout=?,setup_complete=CASE WHEN ?=1 THEN 1 ELSE setup_complete END,version=version+1 WHERE id=? AND version=?",
       )
       .bind(
         title,
@@ -318,6 +318,7 @@ export async function saveStore(
         font,
         bannerId,
         layout,
+        Number(input.finishSetup === true),
         session.store_id,
         version,
       ),

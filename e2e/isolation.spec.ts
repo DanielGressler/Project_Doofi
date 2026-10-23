@@ -23,12 +23,13 @@ test("carrinhos por empresa, clientes em contextos separados e descarte dos dado
       exact: true,
     })
     .click();
-  await page.goto("/loja/verde-mesa");
+  await page.goto("/loja/verde-mesa/carrinho");
   await expect(page.locator("#cart-empty")).toBeVisible();
+  await page.goto("/loja/verde-mesa");
   await page
     .getByRole("button", { name: "Adicionar Bowl de verão", exact: true })
     .click();
-  await page.goto(`/loja/${slug}`);
+  await page.goto(`/loja/${slug}/carrinho`);
   await expect(page.locator("#cart-items")).toContainText(
     "Pão de fermentação natural",
   );
@@ -36,9 +37,11 @@ test("carrinhos por empresa, clientes em contextos separados e descarte dos dado
   const clientB = await browser.newContext();
   try {
     const other = await clientB.newPage();
-    await other.goto(`/loja/${slug}`);
+    await other.goto(`/loja/${slug}/carrinho`);
     await expect(other.locator("#cart-empty")).toBeVisible();
-    await page.getByRole("link", { name: "Continuar pedido" }).click();
+    await page
+      .getByRole("link", { name: "Avançar para dados e entrega" })
+      .click();
     expect(
       await page.evaluate(() =>
         localStorage.getItem("doofi.lastOrder.casa-do-forno"),
@@ -70,7 +73,7 @@ test("carrinhos por empresa, clientes em contextos separados e descarte dos dado
     expect(await page.content()).not.toContain("Cliente isolado A");
     await other.reload();
     await expect(other.locator("#cart-empty")).toBeVisible();
-    await page.goto("/loja/verde-mesa");
+    await page.goto("/loja/verde-mesa/carrinho");
     await expect(page.locator("#cart-items")).toContainText("Bowl de verão");
   } finally {
     await clientB.close();

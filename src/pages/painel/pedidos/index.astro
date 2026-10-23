@@ -41,6 +41,9 @@ import Icon from "../../../components/Icon.astro";
   </p>
   <p class="stats-caption" id="extra-stats"></p>
   <div class="toolbar">
+    <button class="button button-primary" id="open-order-queue">
+      Atender fila
+    </button>
     <select id="status-filter" aria-label="Filtrar pedidos">
       <option value="all">Todos os pedidos</option>
       <option value="pending">Aguardando ação</option>
@@ -57,6 +60,98 @@ import Icon from "../../../components/Icon.astro";
   <div id="order-list" class="order-list" aria-label="Pedidos da loja">
     <p class="muted small">Consultando pedidos...</p>
   </div>
+  <dialog id="order-queue" class="ui-dialog" aria-labelledby="queue-title">
+    <div class="dialog-heading">
+      <h2 id="queue-title" tabindex="-1">
+        Próximo pedido
+      </h2>
+      <button type="button" class="button button-quiet" id="pause-order-queue">
+        Pausar fila ×
+      </button>
+    </div>
+    <p
+      id="queue-count"
+      class="queue-count"
+      role="status"
+      aria-live="polite"
+    ></p>
+    <div id="queue-stack" class="queue-stack">
+      <section class="queue-card">
+        <p id="queue-customer"></p>
+        <p id="queue-location" class="queue-location"></p>
+        <ul id="queue-items" class="queue-items"></ul>
+        <div class="total-row">
+          <span>Produtos</span>
+          <strong id="queue-subtotal"></strong>
+        </div>
+        <div class="total-row">
+          <span>Entrega</span>
+          <strong id="queue-fee"></strong>
+        </div>
+        <div class="total-row grand">
+          <span>Total</span>
+          <strong id="queue-total"></strong>
+        </div>
+        <p id="queue-note" class="small"></p>
+        <form id="queue-quote" hidden>
+          <p class="notice">
+            Proponha o frete para o comprador aprovar. O pedido volta à fila
+            após o aceite dele.
+          </p>
+          <div class="form-grid">
+            <label class="field">
+              <span>Frete da proposta (R$)</span>
+              <input
+                name="fee"
+                type="number"
+                min="0"
+                max="1000"
+                step="0.01"
+                required
+              />
+            </label>
+            <label class="field">
+              <span>Prazo estimado</span>
+              <input
+                name="estimate"
+                minlength="3"
+                maxlength="100"
+                value="Até 45 minutos após o aceite"
+                required
+              />
+            </label>
+          </div>
+          <button type="submit" class="button button-primary">
+            Enviar proposta de frete
+          </button>
+        </form>
+        <label class="field">
+          <span>Motivo para recusar</span>
+          <input
+            id="queue-reason"
+            minlength="3"
+            maxlength="160"
+            placeholder="Preencha somente se for recusar"
+          />
+        </label>
+        <div class="queue-actions">
+          <button id="queue-accept" type="button" class="button button-primary">
+            Aceitar pedido
+          </button>
+          <button id="queue-reject" type="button" class="button button-quiet">
+            Recusar pedido
+          </button>
+          <a id="queue-detail" class="inline-link">
+            Ver detalhes
+          </a>
+        </div>
+      </section>
+    </div>
+    <p id="queue-feedback" class="feedback" role="alert"></p>
+    <button type="button" id="queue-reload" class="button button-quiet">
+      Atualizar pedido em foco
+    </button>
+  </dialog>
   <p class="small muted" style="margin-top:20px">
     Atualização automática a cada 20 segundos com esta aba aberta.
   </p>

@@ -13,6 +13,14 @@ const items = Object.entries(cart).map(([id, quantity]) => ({
   productId: id,
   quantity,
 }));
+document
+  .querySelectorAll("[data-cart-count]")
+  .forEach(
+    (node) =>
+      (node.textContent = String(
+        Object.values(cart).reduce((sum, quantity) => sum + quantity, 0),
+      )),
+  );
 const form = $<HTMLFormElement>("#checkout-form");
 let intent: string | null = null;
 let pending: Record<string, unknown> | null = null;
