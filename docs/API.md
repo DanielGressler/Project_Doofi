@@ -43,6 +43,14 @@ O aceite de frete revalida a expiração da cotação no próprio `UPDATE`. A ve
 
 429 informa `Retry-After` com os segundos restantes da janela. Uploads têm uma vaga de processamento por instância de execução: concorrência acima dela retorna 503, `code:IMAGE_CAPACITY` e `Retry-After:2`, antes de carregar outra imagem na memória. Esse limite protege a instância; não é um limite global de uploads de toda a implantação.
 
+## Isolamento de dados
+
+O catálogo público usa projeções explícitas de loja e produto. Não retorna `store_id`, versões internas, identidade de usuários ou colunas privadas adicionadas ao banco. O acompanhamento continua com uma lista explícita de campos, sem dados pessoais do comprador.
+
+Alterar/remover vínculo, papel ou credenciais e desativar usuário/loja revoga as sessões afetadas com a migração 0005. Uma alteração de acesso durante o login retorna 409 `AUTH_CHANGED`. O modelo atual permite uma loja por usuário administrativo; cabeçalhos/payloads de escopo não substituem a sessão.
+
+Token e nonce de comprador são específicos ao pedido. Eles não autenticam no painel, e uma sessão administrativa de outra loja não amplia seu alcance. Fotos/banners publicados são conteúdo de vitrine; uploads ainda não associados são privados da empresa que os enviou. Veja a [auditoria de isolamento](AUDITORIA_ISOLAMENTO.md).
+
 ## Aparência da loja
 
 `PATCH /painel/loja` aceita `palette:terracotta|forest|ocean|plum`, `font:editorial|simple|classic`, `layout:cozy|compact|showcase`, `banner_id` e `has_own_delivery` booleano, além dos campos de configuração existentes. Campos de aparência omitidos preservam o valor atual. Opções fora dos conjuntos permitidos retornam 422. O layout é persistido pela migração 0003.

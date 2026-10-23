@@ -19,6 +19,7 @@ import {
   recentOrdersStatement,
 } from "./dashboard";
 import { demoAllowed, type DemoAccessConfig } from "./access";
+import { publicProduct, publicStore } from "./public-data";
 
 const json = (
   value: unknown,
@@ -90,7 +91,10 @@ export async function handleApi(
       const [, slug, resource] = match;
       if (!resource && method === "GET") {
         const store = await getStore(db, slug);
-        return json({ store, products: await getProducts(db, store.id) });
+        return json({
+          store: publicStore(store),
+          products: (await getProducts(db, store.id)).map(publicProduct),
+        });
       }
       if (resource === "intent" && method === "POST") {
         await body(request);

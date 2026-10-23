@@ -22,11 +22,13 @@ flowchart LR
 
 ## D-002 · Sessões próprias de demonstração
 
-Autenticação DEV segregada, permitida exclusivamente em hosts loopback e `APP_MODE=local-demo`. Duas contas sintéticas são provisionadas pelo seed. Senhas de teste derivadas com PBKDF2-SHA256/100 mil iterações; fixtures públicas, inadequadas para produção. Sessões usam tokens aleatórios de 256 bits, somente hash no D1, expiração de oito horas, rotação no login e revogação no logout. Toda autorização consulta usuário, loja e associação ativos.
+Autenticação demonstrativa segregada. O modo `APP_MODE=local-demo` exige host loopback. A homologação `APP_MODE=staging-demo` exige HTTPS, host autorizado e JWT Cloudflare Access válido. Duas contas sintéticas são provisionadas pelo seed. Senhas de teste derivadas com PBKDF2-SHA256/100 mil iterações; fixtures públicas, inadequadas para produção. Sessões usam tokens aleatórios de 256 bits, somente hash no D1, expiração de oito horas, rotação no login e revogação no logout. Toda autorização consulta usuário, loja e associação ativos.
 
 Cookie host-only `HttpOnly; SameSite=Strict`, com `Secure` quando há HTTPS. HTTP só é aceito no laboratório local. Mutações exigem mesma origem e JSON; as administrativas também exigem `X-CSRF-Token`. O token CSRF só é fornecido ao lojista autenticado. O login limita tentativas antes da KDF. `Astro Sessions` está desativado; nenhum KV de sessão é necessário.
 
-Antes de homologação: configurar e verificar proteção externa (por exemplo, Cloudflare Access), banco e bindings separados; substituir a restrição loopback de forma revisada. Antes de P2: escolher autenticação de produção, recuperação, reautenticação e política de senhas/credenciais. A aplicação atual falha fechada se publicada sem essa preparação.
+A migração 0005 revoga sessões quando vínculo, papel, credenciais ou ativação mudam. O login revalida esses dados ao persistir a sessão, impedindo uma transferência durante a verificação da senha. A garantia depende de uma única associação por usuário (`UNIQUE(user_id)`). Veja a [auditoria de isolamento](AUDITORIA_ISOLAMENTO.md).
+
+A homologação usa Cloudflare Access e banco/bindings próprios, conforme o [guia de hospedagem](HOSPEDAGEM_CLOUDFLARE.md). Antes de P2: escolher autenticação de produção, recuperação, reautenticação e política de senhas/credenciais. A aplicação bloqueia a execução fora dos hosts/modos autorizados e quando falta a configuração de acesso.
 
 ## D-003 · Integridade e concorrência
 
@@ -43,6 +45,8 @@ Transições usam versão otimista. Alteração e auditoria pertencem à mesma t
 Pedido e pagamento têm máquinas de estado separadas. Todos os estados financeiros começam com `SIMULATED_`. Não existe `bank_reconciled`, chave Pix, BR Code, upload de comprovante ou transferência nesta P1. Uma declaração tardia não reativa um pedido finalizado/cancelado.
 
 O comprador vê itens, valores, andamento, proposta e dados comerciais fictícios da loja; não recebe nome, contato ou endereço de entrega do comprador, hashes internos ou o histórico administrativo completo. Somente o painel autorizado pode consultar os dados necessários ao atendimento. Nenhum CPF é solicitado.
+
+As respostas públicas usam projeções explícitas, incluindo os produtos embutidos no HTML. O link do último pedido deixa de ser persistido em `localStorage`: a associação temporária fica na aba, e é descartada após abrir o acompanhamento. Carrinhos seguem separados por slug.
 
 Logs estruturados de criação contêm correlação, linhas lidas/escritas e duração D1; não contêm nome, contato, endereço ou token. A auditoria registra fatos gerados no servidor e não confia em eventos fornecidos pelo browser. Headers impedem cache de páginas dinâmicas, referência externa, enquadramento e indexação. Telemetria comportamental está ausente.
 

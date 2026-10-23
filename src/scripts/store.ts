@@ -1,8 +1,9 @@
 import { $, el, readCart, saveCart } from "./browser";
-import { money, type Product } from "../lib/types";
+import { money } from "../lib/types";
+import type { PublicProduct } from "../lib/public-data";
 const root = $("#store-app");
 const slug = root.dataset.slug!;
-const products = JSON.parse(root.dataset.products!) as Product[];
+const products = JSON.parse(root.dataset.products!) as PublicProduct[];
 let cart = readCart(slug);
 function render() {
   const rows = $("#cart-items");

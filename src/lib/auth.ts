@@ -1,6 +1,7 @@
 import {
   AppError,
   audit,
+  conditionalAudit,
   hash,
   now,
   passwordHash,
@@ -66,7 +67,7 @@ export async function login(
   const password = textField(input.password, "Senha", 1, 128);
   const user = await db
     .prepare(
-      "SELECT u.*,m.store_id FROM users u JOIN store_memberships m ON m.user_id=u.id AND m.active=1 JOIN stores t ON t.id=m.store_id AND t.active=1 WHERE u.email=? AND u.active=1",
+      "SELECT u.id,u.salt,u.password_hash,m.store_id,m.role FROM users u JOIN store_memberships m ON m.user_id=u.id AND m.active=1 JOIN stores t ON t.id=m.store_id AND t.active=1 WHERE u.email=? AND u.active=1",
     )
     .bind(email)
     .first<{
@@ -74,6 +75,7 @@ export async function login(
       store_id: string;
       salt: string;
       password_hash: string;
+      role: Session["role"];
     }>();
   const derived = await passwordHash(
     password,
@@ -92,15 +94,44 @@ export async function login(
   }
   const token = randomToken();
   const csrf = randomToken();
-  await db.batch([
+  const writes = await db.batch([
     db
       .prepare("DELETE FROM sessions WHERE token_hash=?")
       .bind(await hash(cookieToken(request))),
     db
-      .prepare("INSERT INTO sessions VALUES (?,?,?,?)")
-      .bind(await hash(token), user.id, csrf, now() + 28800),
-    audit(db, user.store_id, user.id, "LOGIN", user.id),
+      .prepare(
+        `INSERT INTO sessions (token_hash,user_id,csrf_token,expires_at)
+        SELECT ?,?,?,? WHERE EXISTS(
+          SELECT 1 FROM users u JOIN store_memberships m ON m.user_id=u.id
+          JOIN stores t ON t.id=m.store_id WHERE u.id=? AND u.active=1
+          AND u.password_hash=? AND u.salt=? AND m.store_id=? AND m.role=?
+          AND m.active=1 AND t.active=1
+        )`,
+      )
+      .bind(
+        await hash(token),
+        user.id,
+        csrf,
+        now() + 28800,
+        user.id,
+        user.password_hash,
+        user.salt,
+        user.store_id,
+        user.role,
+      ),
+    conditionalAudit(
+      db,
+      { store_id: user.store_id, user_id: user.id },
+      "LOGIN",
+      user.id,
+    ),
   ]);
+  if (!writes[1].meta.changes)
+    throw new AppError(
+      409,
+      "O acesso foi alterado durante a entrada. Entre novamente.",
+      "AUTH_CHANGED",
+    );
   return { csrfToken: csrf, setCookie: cookie(token, request, 28800) };
 }
 export async function logout(

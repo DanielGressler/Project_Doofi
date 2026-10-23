@@ -6,13 +6,14 @@ import HeroArt from "../../../components/HeroArt.astro";
 import Icon from "../../../components/Icon.astro";
 import { getStore, getProducts } from "../../../lib/catalog";
 import { money } from "../../../lib/types";
+import { publicProduct } from "../../../lib/public-data";
 let store;
 try {
   store = await getStore(env.DB, Astro.params.slug!);
 } catch {
   return Astro.redirect("/404");
 }
-const products = await getProducts(env.DB, store.id);
+const products = (await getProducts(env.DB, store.id)).map(publicProduct);
 // The legacy seed theme selects demo artwork; palette controls the page colors.
 const usesFreshIllustration = store.theme === "green";
 ---

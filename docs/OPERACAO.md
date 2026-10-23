@@ -54,6 +54,10 @@ Os arquivos de backup contêm dados da demonstração, sessões e material cript
 
 Antes de ampliar a homologação: medir CPU, requests, rows read/write e storage reais; definir alertas de 70% e 90% das cotas do plano e responsáveis; restringir acesso, separar bancos e definir retenção de pedidos e auditoria. Os alertas estão propostos, **não provisionados**. A [auditoria de concorrência](AUDITORIA_CONCORRENCIA.md) descreve o teste de carga local e os gargalos que ainda precisam de medição remota.
 
+## Atualizar o isolamento
+
+Após atualizar para a revisão de isolamento, aplique a migração 0005 com `npm run db:migrate` (local) ou `npm run db:migrate:staging` (remoto autenticado). Ela encerra as sessões administrativas existentes uma vez, preservando pedidos, catálogos e imagens. Os empresários precisam entrar novamente. Mudanças posteriores de vínculo, papel, credenciais ou ativação revogam somente as sessões afetadas. Os cenários e limites estão na [auditoria de isolamento](AUDITORIA_ISOLAMENTO.md).
+
 ## Falha ou indisponibilidade
 
 1. Interrompa novos testes, preserve `.wrangler/state` e capture somente código/ID de correlação do erro.

@@ -262,11 +262,14 @@ if (root) {
       feedback("Copie o endereço desta página para guardar o link.", true);
     }
   };
+  const slug = order.store.slug;
   try {
-    const slug = order.store.slug;
+    localStorage.removeItem(`doofi.lastOrder.${slug}`);
+  } catch {}
+  try {
     const intentKey = `doofi.intent.${slug}`;
     const last = JSON.parse(
-      localStorage.getItem(`doofi.lastOrder.${slug}`) ?? "null",
+      sessionStorage.getItem(`doofi.lastOrder.${slug}`) ?? "null",
     );
     if (
       last?.token === token &&
@@ -276,6 +279,7 @@ if (root) {
       sessionStorage.removeItem(intentKey);
       sessionStorage.removeItem(`${intentKey}.payload`);
       sessionStorage.removeItem(`${intentKey}.completed`);
+      sessionStorage.removeItem(`doofi.lastOrder.${slug}`);
     }
   } catch {}
   render();

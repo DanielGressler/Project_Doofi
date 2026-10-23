@@ -4,19 +4,22 @@ import { getSession } from "./lib/auth";
 import { demoAllowed } from "./lib/access";
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  if (!(await demoAllowed(context.request, env.APP_MODE, env)))
-    return new Response(
-      "Demonstração indisponível neste endereço ou acesso não autorizado. Verifique a configuração do ambiente e do Cloudflare Access.",
-      { status: 403 },
-    );
-  if (context.url.pathname.startsWith("/painel")) {
-    context.locals.session = await getSession(env.DB, context.request);
-    if (!context.locals.session && context.url.pathname !== "/painel/entrar")
-      return context.redirect("/painel/entrar");
-    if (context.locals.session && context.url.pathname === "/painel/entrar")
-      return context.redirect("/painel/pedidos");
+  async function dispatch() {
+    if (!(await demoAllowed(context.request, env.APP_MODE, env)))
+      return new Response(
+        "Demonstração indisponível neste endereço ou acesso não autorizado. Verifique a configuração do ambiente e do Cloudflare Access.",
+        { status: 403 },
+      );
+    if (context.url.pathname.startsWith("/painel")) {
+      context.locals.session = await getSession(env.DB, context.request);
+      if (!context.locals.session && context.url.pathname !== "/painel/entrar")
+        return context.redirect("/painel/entrar");
+      if (context.locals.session && context.url.pathname === "/painel/entrar")
+        return context.redirect("/painel/pedidos");
+    }
+    return next();
   }
-  const response = await next();
+  const response = await dispatch();
   response.headers.set("Cache-Control", "no-store");
   response.headers.set("Referrer-Policy", "no-referrer");
   response.headers.set("X-Content-Type-Options", "nosniff");

@@ -1,8 +1,9 @@
 import { $, api, ApiError, el, feedback, readCart } from "./browser";
-import { money, type Product } from "../lib/types";
+import { money } from "../lib/types";
+import type { PublicProduct } from "../lib/public-data";
 const root = $("#checkout-app");
 const slug = root.dataset.slug!;
-const products = JSON.parse(root.dataset.products!) as Product[];
+const products = JSON.parse(root.dataset.products!) as PublicProduct[];
 const store = JSON.parse(root.dataset.store!) as {
   delivery_fee: number;
   is_open: number;
@@ -16,6 +17,9 @@ const form = $<HTMLFormElement>("#checkout-form");
 let intent: string | null = null;
 let pending: Record<string, unknown> | null = null;
 const intentKey = `doofi.intent.${slug}`;
+try {
+  localStorage.removeItem(`doofi.lastOrder.${slug}`);
+} catch {}
 try {
   intent = sessionStorage.getItem(intentKey);
 } catch {
@@ -87,7 +91,7 @@ form.addEventListener("submit", async (event) => {
     // Keep the submitted cart and intent until a later visit starts another order.
     // If navigation fails, repeating this submission safely returns the same order.
     try {
-      localStorage.setItem(
+      sessionStorage.setItem(
         `doofi.lastOrder.${slug}`,
         JSON.stringify({ token: result.token, protocol: result.protocol }),
       );

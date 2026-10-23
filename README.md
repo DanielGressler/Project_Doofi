@@ -8,6 +8,8 @@ Veja o [guia de atualização, Windows e novas funções](docs/ATUALIZACAO_CATAL
 
 A [auditoria de concorrência e desempenho](docs/AUDITORIA_CONCORRENCIA.md) registra as falhas reproduzidas, as correções e os limites das medições. A atualização requer aplicar a migração `0004_concorrencia_indices.sql` com `npm run db:migrate` no ambiente local ou `npm run db:migrate:staging` na homologação.
 
+A [auditoria de isolamento](docs/AUDITORIA_ISOLAMENTO.md) cobre empresas, clientes, permissões, imagens e dados públicos. A migração `0005_isolamento.sql` encerra as sessões administrativas anteriores e revoga sessões quando o acesso muda. Os empresários precisam entrar novamente; pedidos e catálogos são preservados.
+
 ## Executar
 
 Requisitos: Node 24 (ou >=22.22), npm e Linux/macOS/Windows compatível com workerd. As versões exatas estão em `package-lock.json`.
@@ -82,6 +84,7 @@ Com o preview local iniciado, execute em outro terminal `npm run test:load`. O c
 - [Operação e restauração](docs/OPERACAO.md)
 - [Contratos de API](docs/API.md)
 - [Auditoria de concorrência e desempenho](docs/AUDITORIA_CONCORRENCIA.md)
+- [Auditoria de isolamento](docs/AUDITORIA_ISOLAMENTO.md)
 - [Dossiê original v0.9.5](docs/referencia/docs/01_PROTOTIPO_FUNCIONAL.md)
 
 As capturas em `docs/evidencias` foram geradas pelos testes com dados fictícios. Os documentos v0.9.5 são referências de requisitos; o SQL e os testes da versão histórica v0.9.4 não foram usados como implementação ou evidência desta P1. Os anexos de diplomas não foram importados.

@@ -6,7 +6,10 @@ export const GET = async ({
   request,
 }: Pick<APIContext, "params" | "request">) => {
   if (!/^[a-f0-9-]{36}$/.test(params.id ?? ""))
-    return new Response(null, { status: 404 });
+    return new Response(null, {
+      status: 404,
+      headers: { "Cache-Control": "no-store" },
+    });
   const session = await getSession(env.DB, request);
   const row = await env.DB.prepare(
     `SELECT m.data FROM media_assets m JOIN stores s ON s.id=m.store_id AND s.active=1
@@ -14,11 +17,16 @@ export const GET = async ({
   )
     .bind(params.id!, session?.store_id ?? "")
     .first<{ data: ArrayBuffer | number[] }>();
-  if (!row) return new Response(null, { status: 404 });
+  if (!row)
+    return new Response(null, {
+      status: 404,
+      headers: { "Cache-Control": "no-store" },
+    });
   const bytes = Array.isArray(row.data) ? new Uint8Array(row.data) : row.data;
   return new Response(bytes, {
     headers: {
       "Content-Type": "image/jpeg",
+      "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",
     },
   });

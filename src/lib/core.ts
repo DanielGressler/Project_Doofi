@@ -156,6 +156,30 @@ export function audit(
       now(),
     );
 }
+export function conditionalAudit(
+  db: D1Database,
+  actor: { store_id: string; user_id: string },
+  action: string,
+  entity: string,
+  metadata: object = {},
+  eventId = crypto.randomUUID(),
+  correlationId = crypto.randomUUID(),
+) {
+  return db
+    .prepare(
+      "INSERT INTO audit_events (id,store_id,actor_id,action,entity_id,metadata,correlation_id,created_at) SELECT ?,?,?,?,?,?,?,unixepoch() WHERE changes()>0",
+    )
+    .bind(
+      eventId,
+      actor.store_id,
+      actor.user_id,
+      action,
+      entity,
+      JSON.stringify(metadata),
+      correlationId,
+    );
+}
+
 export async function rateLimit(
   db: D1Database,
   request: Request,

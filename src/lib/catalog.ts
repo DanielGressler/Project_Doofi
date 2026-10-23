@@ -1,4 +1,11 @@
-import { AppError, audit, integer, textField, versionField } from "./core";
+import {
+  AppError,
+  audit,
+  conditionalAudit,
+  integer,
+  textField,
+  versionField,
+} from "./core";
 import type { Product, Session, Store } from "./types";
 import { palettes, fonts, layouts } from "./appearance";
 
@@ -243,29 +250,6 @@ export async function saveProduct(
       throw new AppError(422, "Limite de 50 anúncios por loja.");
   }
   return { id: productId };
-}
-export function conditionalAudit(
-  db: D1Database,
-  session: Pick<Session, "store_id" | "user_id">,
-  action: string,
-  entity: string,
-  metadata: object = {},
-  eventId = crypto.randomUUID(),
-  correlationId = crypto.randomUUID(),
-) {
-  return db
-    .prepare(
-      "INSERT INTO audit_events (id,store_id,actor_id,action,entity_id,metadata,correlation_id,created_at) SELECT ?,?,?,?,?,?,?,unixepoch() WHERE changes()>0",
-    )
-    .bind(
-      eventId,
-      session.store_id,
-      session.user_id,
-      action,
-      entity,
-      JSON.stringify(metadata),
-      correlationId,
-    );
 }
 export async function saveStore(
   db: D1Database,

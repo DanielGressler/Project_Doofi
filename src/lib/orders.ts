@@ -1,6 +1,7 @@
 import {
   AppError,
   audit,
+  conditionalAudit,
   hash,
   hmac,
   integer,
@@ -11,7 +12,7 @@ import {
   textField,
   versionField,
 } from "./core";
-import { conditionalAudit, getStore, getProducts } from "./catalog";
+import { getStore, getProducts } from "./catalog";
 import type {
   Order,
   OrderItem,
