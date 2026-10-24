@@ -3,6 +3,7 @@ import { money, statusLabels, formatDate, type Order } from "../lib/types";
 import type { OrderSummary } from "../lib/dashboard";
 import { createPoller } from "./poller";
 import { createOrderQueue, type QueueEntry } from "./order-queue";
+import { createOrderAlerts } from "./order-alerts";
 type Row = Pick<
   Order,
   | "id"
@@ -78,6 +79,7 @@ async function load() {
   $("#extra-stats").textContent =
     `Recusados ou cancelados: ${summary.cancelled} · Mais pedido: ${summary.topItem ? summary.topItem.title + " (" + summary.topItem.units + " unidades)" : "sem dados"}`;
   render();
+  orderAlerts.update(queue);
   orderQueue.update(queue);
   feedback("");
 }
@@ -88,6 +90,7 @@ const poller = createPoller(load, {
   onError: (error) => feedback((error as Error).message, true),
 });
 const orderQueue = createOrderQueue(() => poller.refresh(true));
+const orderAlerts = createOrderAlerts();
 $("#refresh-orders").onclick = () => void poller.refresh();
 $("#status-filter").onchange = render;
 void poller.refresh();

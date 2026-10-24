@@ -97,7 +97,7 @@ it.each(injections)(
       email,
       password: "demo-doofi-P1!",
     });
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(422);
     expect(response.headers.get("set-cookie")).toBeNull();
     expect(
       (await env.DB.prepare("SELECT COUNT(*) n FROM sessions").first<{
@@ -133,10 +133,7 @@ it("instruções SQL e HTML nos dados fictícios são gravadas somente como text
   const sql = "'; DROP TABLE users;--",
     html = '<img src=x onerror="alert(1)">';
   const created = await order({
-    name: sql,
-    phone: sql,
-    email: sql,
-    address: html,
+    address: sql,
     note: html,
   });
   const row = await env.DB.prepare(
@@ -144,7 +141,12 @@ it("instruções SQL e HTML nos dados fictícios são gravadas somente como text
   )
     .bind(created.id)
     .first();
-  expect(row).toEqual({ name: sql, phone: sql, email: sql, address: html });
+  expect(row).toEqual({
+    name: "Pessoa de teste",
+    phone: "00000000",
+    email: "pessoa@exemplo.invalid",
+    address: sql,
+  });
   expect(
     (await env.DB.prepare("SELECT COUNT(*) n FROM users").first<{
       n: number;

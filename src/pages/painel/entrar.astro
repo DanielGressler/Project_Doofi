@@ -1,4 +1,5 @@
 ---
+import NovelGuide from "../../components/NovelGuide.astro";
 import Layout from "../../layouts/Layout.astro";
 ---
 
@@ -30,6 +31,16 @@ import Layout from "../../layouts/Layout.astro";
           </button>
         </div>
         <form id="register-form" hidden>
+          <NovelGuide
+            id="register-guide"
+            scenes={[
+              {
+                title: "Primeiro, vamos criar seu acesso de teste",
+                text: "Eu sou Dofi! Comece pelo nome da loja, e-mail reservado (como loja@exemplo.invalid), telefone com DDD 00 e uma senha inventada. Depois vamos personalizar banners, cores e fontes e conhecer o catálogo. O cliente não precisa de conta.",
+              },
+            ]}
+          />
+
           <label class="field">
             <span>Nome da nova loja</span>
             <input
@@ -45,11 +56,24 @@ import Layout from "../../layouts/Layout.astro";
             <input
               type="email"
               name="email"
+              data-synthetic="email"
               required
               maxlength="120"
               autocomplete="username"
               placeholder="minhaloja@exemplo.invalid"
             />
+          </label>
+          <label class="field">
+            <span>Telefone fictício da loja</span>
+            <input
+              name="contact"
+              type="tel"
+              data-synthetic="phone"
+              required
+              value="(00) 00000-0001"
+              maxlength="40"
+            />
+            <small>Use sempre DDD 00.</small>
           </label>
           <label class="field">
             <span>Senha para a nova loja</span>
@@ -80,6 +104,7 @@ import Layout from "../../layouts/Layout.astro";
             <input
               type="email"
               name="email"
+              data-synthetic="email"
               value="forno@demo.doofi.test"
               required
               autocomplete="username"
@@ -120,6 +145,7 @@ import Layout from "../../layouts/Layout.astro";
   </div>
 </Layout>
 <script>
+  import "../../scripts/synthetic-fields";
   import { $, api, busy } from "../../scripts/browser";
   const loginForm = $<HTMLFormElement>("#login-form"),
     registerForm = $<HTMLFormElement>("#register-form");
@@ -153,11 +179,19 @@ import Layout from "../../layouts/Layout.astro";
     (button) =>
       (button.onclick = () => {
         showRegister(false);
-        $<HTMLInputElement>('[name="email"]', loginForm).value =
-          button.dataset.email!;
+        $<HTMLInputElement>(
+          '[name="email" data-synthetic="email"]',
+          loginForm,
+        ).value = button.dataset.email!;
+        $<HTMLInputElement>('[name="email"]', loginForm).dispatchEvent(
+          new Event("input"),
+        );
         $<HTMLInputElement>('[name="password"]', loginForm).value =
           "demo-doofi-P1!";
-        $<HTMLInputElement>('[name="email"]', loginForm).focus();
+        $<HTMLInputElement>(
+          '[name="email" data-synthetic="email"]',
+          loginForm,
+        ).focus();
       }),
   );
   $<HTMLFormElement>("#login-form").onsubmit = (event) => {

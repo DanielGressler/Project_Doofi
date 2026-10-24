@@ -1,3 +1,4 @@
+import { syntheticIdentityValid } from "../lib/synthetic-data";
 // This is a per-tab delivery draft, never a customer account or authorization.
 export const draftLifetime = 60 * 60 * 1000;
 export interface CheckoutPayload {
@@ -63,6 +64,10 @@ export function parseDraft(
     )
       return null;
     const p = draft.payload;
+    if (
+      !syntheticIdentityValid({ name: p.name, phone: p.phone, email: p.email })
+    )
+      return null;
     if (
       !text(p.intent, 64, 64) ||
       !/^[a-f0-9]{64}$/.test(p.intent) ||

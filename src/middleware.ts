@@ -40,7 +40,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
       if (!context.locals.session && context.url.pathname !== "/painel/entrar")
         return context.redirect("/painel/entrar");
       if (context.locals.session && context.url.pathname === "/painel/entrar")
-        return context.redirect("/painel/pedidos");
+        return context.redirect(
+          context.locals.session.role === "owner" &&
+            !context.locals.session.store_setup_complete
+            ? "/painel/loja?tutorial=1"
+            : "/painel/pedidos",
+        );
     }
     return next();
   }

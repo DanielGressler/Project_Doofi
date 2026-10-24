@@ -10,8 +10,9 @@ interface Props {
   panel?: boolean;
   slug?: string;
   appearance?: StoreAppearance;
+  entry?: boolean;
 }
-const { title, panel = false, slug, appearance } = Astro.props;
+const { title, panel = false, slug, appearance, entry = false } = Astro.props;
 const colors = palettes[appearance?.palette ?? "terracotta"];
 ---
 
@@ -44,9 +45,11 @@ const colors = palettes[appearance?.palette ?? "terracotta"];
           · Dados fictícios. Nenhum pagamento real.
         </span>
       </span>
-      <a href="/demo">
-        Explorar demonstração <span aria-hidden="true">↗</span>
-      </a>
+      {!entry && (
+        <a href="/">
+          Trocar experiência <span aria-hidden="true">↗</span>
+        </a>
+      )}
     </div>
     <header class="site-header wrap">
       <a class="brand" href="/" aria-label="Doofi, início">
@@ -59,37 +62,39 @@ const colors = palettes[appearance?.palette ?? "terracotta"];
         doofi<span class="brand-period">.</span>
       </a>
       <span class="header-caption">O bom do bairro, aqui.</span>
-      <nav aria-label="Navegação principal">
-        {panel ? (
-          <a class="nav-link" href="/demo">
-            <Icon name="store" />
-            Lojas de teste
-          </a>
-        ) : (
-          <a class="nav-link" href="/painel/entrar">
-            <Icon name="user" />
-            <span>Área do lojista</span>
-          </a>
-        )}
-        {slug && (
-          <a
-            class="button button-quiet header-cart"
-            href={`/loja/${slug}/carrinho`}
-          >
-            <Icon name="bag" />
-            <span class="cart-label">Seu pedido</span>
-            <span class="cart-count" data-cart-count>
-              0
-            </span>
-          </a>
-        )}
-        {panel && (
-          <button class="button button-quiet" id="logout">
-            <Icon name="logout" />
-            Sair
-          </button>
-        )}
-      </nav>
+      {!entry && (
+        <nav aria-label="Navegação principal">
+          {panel ? (
+            <a class="nav-link" href="/lojas">
+              <Icon name="store" />
+              Lojas cadastradas
+            </a>
+          ) : (
+            <a class="nav-link" href="/painel/entrar">
+              <Icon name="user" />
+              <span>Área do lojista</span>
+            </a>
+          )}
+          {slug && (
+            <a
+              class="button button-quiet header-cart"
+              href={`/loja/${slug}/carrinho`}
+            >
+              <Icon name="bag" />
+              <span class="cart-label">Seu pedido</span>
+              <span class="cart-count" data-cart-count>
+                0
+              </span>
+            </a>
+          )}
+          {panel && (
+            <button class="button button-quiet" id="logout">
+              <Icon name="logout" />
+              Sair
+            </button>
+          )}
+        </nav>
+      )}
     </header>
     <main id="conteudo">
       <slot />
@@ -112,7 +117,7 @@ const colors = palettes[appearance?.palette ?? "terracotta"];
             <a href={`/loja/${slug}/checkout`}>Dados de envio</a>
           </>
         ) : (
-          <a href="/demo">Lojas de demonstração</a>
+          <a href="/">Escolher experiência</a>
         )}
       </nav>
       <div>

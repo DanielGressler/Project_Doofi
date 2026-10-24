@@ -49,7 +49,7 @@ test("carrinhos por empresa, clientes em contextos separados e descarte dos dado
     ).toBeNull();
     await page
       .getByRole("textbox", { name: /^Nome fictício/ })
-      .fill("Cliente isolado A");
+      .fill("Cliente Teste isolado A");
     await page
       .getByRole("textbox", { name: /^E-mail fictício/ })
       .fill("privado-a@exemplo.invalid");
@@ -70,7 +70,7 @@ test("carrinhos por empresa, clientes em contextos separados e descarte dos dado
       ),
     ).toEqual([]);
     expect(await page.content()).not.toContain("privado-a@exemplo.invalid");
-    expect(await page.content()).not.toContain("Cliente isolado A");
+    expect(await page.content()).not.toContain("Cliente Teste isolado A");
     await other.reload();
     await expect(other.locator("#cart-empty")).toBeVisible();
     await page.goto("/loja/verde-mesa/carrinho");
@@ -117,7 +117,7 @@ test("HTML privado fica restrito à empresa autenticada e não permite cache", a
           items: [{ productId: "a-pao", quantity: 1 }],
           fulfillment: "FIXED",
           payment: "PIX_SIMULATED",
-          name: "Cliente secreto A",
+          name: "Cliente Teste secreto A",
           phone: "00000000",
           email: "privado-a@exemplo.invalid",
           address: "Rua privativa A, 123",

@@ -20,7 +20,7 @@ export function createOrderQueue(refresh: () => Promise<void>) {
   function lock(disabled: boolean) {
     dialog
       .querySelectorAll<HTMLButtonElement>(
-        "#queue-accept, #queue-reject, #queue-quote button, #queue-reload",
+        "#queue-accept, #queue-reject, #queue-propose, #queue-reload",
       )
       .forEach((button) => (button.disabled = disabled));
   }
@@ -34,7 +34,7 @@ export function createOrderQueue(refresh: () => Promise<void>) {
     $("#queue-stack").classList.toggle("has-next", entries.length > 1);
   }
   async function focusNext(force = false) {
-    if (paused || writing) return;
+    if (paused || writing || document.hidden) return;
     const first = entries[0];
     if (!first) {
       current = null;
@@ -62,6 +62,8 @@ export function createOrderQueue(refresh: () => Promise<void>) {
     $("#queue-note").textContent = "";
     $("#queue-detail").removeAttribute("href");
     $("#queue-quote").hidden = true;
+    $("#queue-propose").hidden = true;
+    $("#queue-accept").hidden = true;
     $<HTMLInputElement>("#queue-reason").value = "";
     feedback("", false, "#queue-feedback");
     if (!dialog.open) dialog.showModal();
@@ -81,13 +83,14 @@ export function createOrderQueue(refresh: () => Promise<void>) {
         order.fulfillment === "PICKUP"
           ? "Retirada na loja"
           : `Entrega: ${order.address ?? ""} · ${order.neighborhood ?? ""} · CEP ${order.postal_code ?? ""}`;
-      for (const item of order.items)
-        $("#queue-items").append(
-          el(
-            "li",
-            `${item.quantity} × ${item.title} · ${money(item.price * item.quantity)}`,
-          ),
+      for (const item of order.items) {
+        const row = el("li");
+        row.append(
+          el("strong", `${item.quantity} × ${item.title}`),
+          el("span", money(item.price * item.quantity)),
         );
+        $("#queue-items").append(row);
+      }
       $("#queue-subtotal").textContent = money(order.subtotal);
       $("#queue-fee").textContent = money(order.delivery_fee);
       $("#queue-total").textContent = money(order.total);
@@ -96,6 +99,7 @@ export function createOrderQueue(refresh: () => Promise<void>) {
         : "";
       $("#queue-accept").hidden = order.status === "QUOTE_PENDING";
       $("#queue-quote").hidden = order.status !== "QUOTE_PENDING";
+      $("#queue-propose").hidden = order.status !== "QUOTE_PENDING";
       $<HTMLAnchorElement>("#queue-detail").href =
         `/painel/pedidos/${order.id}`;
       $("#queue-title").focus();
@@ -108,6 +112,7 @@ export function createOrderQueue(refresh: () => Promise<void>) {
         lock(false);
         $<HTMLButtonElement>("#queue-accept").disabled = !current;
         $<HTMLButtonElement>("#queue-reject").disabled = !current;
+        $<HTMLButtonElement>("#queue-propose").disabled = !current;
       }
     }
   }

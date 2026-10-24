@@ -31,7 +31,7 @@ const usesFreshIllustration = store.theme === "green";
     })}
   >
     <div class="breadcrumb">
-      <a href="/demo">Lojas de demonstração</a>
+      <a href="/lojas">Lojas do bairro</a>
       <span>/</span>
       <span>{store.title}</span>
     </div>
@@ -66,6 +66,8 @@ const usesFreshIllustration = store.theme === "green";
           />
         ) : usesFreshIllustration ? (
           <ProductArt kind="bowl" large />
+        ) : store.theme === "sweets" ? (
+          <ProductArt kind="croissant" large />
         ) : (
           <HeroArt />
         )}

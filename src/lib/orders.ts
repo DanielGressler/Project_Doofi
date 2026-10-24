@@ -13,7 +13,7 @@ import {
   versionField,
 } from "./core";
 import { getStore, getProducts } from "./catalog";
-import { deliveryIdentity } from "./customer-data";
+import { assertSyntheticDelivery, deliveryIdentity } from "./customer-data";
 import type {
   Order,
   OrderItem,
@@ -160,6 +160,11 @@ export async function createOrder(
       "Informe nome, telefone e e-mail fictícios para os dados de envio.",
       "DELIVERY_DETAILS_REQUIRED",
     );
+  assertSyntheticDelivery({
+    name: normalized.name,
+    phone: normalized.phone,
+    email: normalized.email,
+  });
   if (!store.is_open)
     throw new AppError(422, "A loja está fechada para novos pedidos.");
   if (normalized.fulfillment === "FIXED" && !store.has_own_delivery)

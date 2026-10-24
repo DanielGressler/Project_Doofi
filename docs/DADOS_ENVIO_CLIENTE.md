@@ -1,11 +1,11 @@
 # Dados de envio do cliente
 
-O lojista continua usando o painel e o login existentes. O cliente informa os dados do pedido após fechar o carrinho: nome, telefone e e-mail, além de endereço, bairro e CEP quando escolhe entrega. Os valores podem ser genéricos e fictícios. Esses dados permanecem sem verificação de identidade.
+O lojista continua usando o painel e o login existentes. O cliente informa os dados do pedido após fechar o carrinho: nome, telefone e e-mail, além de endereço, bairro e CEP quando escolhe entrega. Os valores devem seguir os formatos de teste: nome com **Teste**, **Exemplo**, **Demo** ou **Fictício**; telefone com **DDD 00**; e-mail com domínio reservado `.invalid`, `.test`, `.example` ou exatamente `example.com/net/org`. O telefone legado formado por 8 a 11 zeros também é aceito. Formulário e backend aplicam a mesma regra, sem e-mail, SMS, senha ou código. Esses formatos não comprovam a identidade de uma pessoa; nomes de lojas são marcas e não passam pela regra de nome pessoal.
 
 ## Como testar
 
 1. Abra uma loja, adicione produtos e clique em **Continuar pedido**.
-2. Revise a página do carrinho e clique em **Avançar para dados e entrega**. Informe nome, telefone e e-mail fictícios. Para entrega, preencha também os campos de endereço já existentes.
+2. Revise a página do carrinho e clique em **Avançar para dados e entrega**. Informe, por exemplo, `Cliente Teste 01`, `(00) 00000-0001` e `cliente@exemplo.invalid`. Para entrega, preencha também os campos de endereço já existentes.
 3. Confirme o uso de dados fictícios e envie o pedido. O fluxo continua para o acompanhamento existente.
 4. Entre no painel da própria loja e abra o pedido: telefone e e-mail aparecem separados, junto ao nome e ao endereço.
 

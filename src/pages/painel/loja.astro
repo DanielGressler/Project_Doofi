@@ -1,4 +1,7 @@
 ---
+import ProductArt from "../../components/ProductArt.astro";
+import HeroArt from "../../components/HeroArt.astro";
+import NovelGuide from "../../components/NovelGuide.astro";
 import PanelLayout from "../../layouts/PanelLayout.astro";
 import { env } from "cloudflare:workers";
 import type { Store } from "../../lib/types";
@@ -26,13 +29,27 @@ const tutorial =
     </div>
   </div>
   {tutorial ? (
-    <div class="wizard-intro">
-      <h2>Vamos montar sua loja, passo a passo</h2>
-      <p>
-        Preencha os dados fictícios, escolha a entrega e deixe o visual com a
-        sua cara. As alterações serão salvas ao concluir.
-      </p>
-    </div>
+    <NovelGuide
+      id="store-guide"
+      scenes={[
+        {
+          title: "Vamos dar uma identidade à loja",
+          text: "Escolha o nome da sua marca de teste, informe um telefone com DDD 00 e uma descrição. Use dados fictícios também no endereço. Os dados de uma loja ficam separados das outras.",
+        },
+        {
+          title: "Como seu pedido chega?",
+          text: "Você pode oferecer retirada e frete a combinar. Marque Possui entregador próprio para exibir a taxa fixa. Esse valor só aparece ao comprador quando a opção está marcada.",
+        },
+        {
+          title: "Agora, o visual da loja inteira",
+          text: "Escolha uma paleta, fontes e layout. Use um dos banners ilustrados prontos ou envie sua própria imagem: ela tem prioridade e será ajustada automaticamente. Remova o banner próprio para voltar à ilustração. A prévia mostra cores e fontes antes de salvar.",
+        },
+        {
+          title: "Confira e continue a história",
+          text: "Salve as configurações para seguir ao catálogo. Lá eu mostro o rodapé, como preencher produtos e como montar combos. A loja aparecerá na lista de clientes ao concluir o guia.",
+        },
+      ]}
+    />
   ) : (
     <a class="inline-link" href="/painel/loja?tutorial=1">
       Personalizar com o assistente →
@@ -71,9 +88,10 @@ const tutorial =
           />
         </label>
         <label class="field">
-          <span>Contato comercial fictício</span>
+          <span>Contato comercial fictício (DDD 00)</span>
           <input
             name="contact"
+            data-synthetic="contact"
             value={store.contact}
             minlength="4"
             maxlength="80"
@@ -186,6 +204,30 @@ const tutorial =
             </select>
           </label>
           <label class="field full">
+            <span>Banner ilustrado pronto</span>
+            <select name="banner_preset" aria-label="Banner ilustrado pronto">
+              {[
+                ["bakery", "Padaria · pães e café"],
+                ["green", "Fresco · bowls e saladas"],
+                ["sweets", "Doces · croissants"],
+              ].map(([key, label]) => (
+                <option
+                  value={key}
+                  selected={
+                    (store.theme === "terracotta" ? "bakery" : store.theme) ===
+                    key
+                  }
+                >
+                  {label}
+                </option>
+              ))}
+            </select>
+            <small>
+              O banner próprio tem prioridade. Remova-o para usar a ilustração
+              escolhida.
+            </small>
+          </label>
+          <label class="field full">
             <span>Layout da página</span>
             <select name="layout" aria-label="Layout da página">
               {Object.entries(layouts).map(([key, value]) => (
@@ -199,6 +241,27 @@ const tutorial =
               ser escolhidas separadamente.
             </small>
           </label>
+          <div
+            class="full banner-preset-preview"
+            aria-label="Prévia do banner ilustrado"
+          >
+            <div
+              data-banner-preset="bakery"
+              hidden={!["bakery", "terracotta"].includes(store.theme)}
+            >
+              <HeroArt />
+            </div>
+            <div data-banner-preset="green" hidden={store.theme !== "green"}>
+              <ProductArt kind="bowl" large />
+            </div>
+            <div data-banner-preset="sweets" hidden={store.theme !== "sweets"}>
+              <ProductArt kind="croissant" large />
+            </div>
+            <p class="small muted">
+              Prévia da ilustração pronta. Um banner próprio enviado tem
+              prioridade.
+            </p>
+          </div>
           <div
             class="full appearance-preview store-theme"
             id="appearance-preview"
@@ -301,13 +364,14 @@ const tutorial =
         id="save-store"
         hidden={tutorial}
       >
-        {tutorial ? "Concluir e cadastrar produtos →" : "Salvar configurações"}
+        {tutorial ? "Salvar e continuar o guia →" : "Salvar configurações"}
       </button>
     </div>
     <p id="feedback" class="feedback" role="alert" aria-live="polite"></p>
   </form>
 </PanelLayout>
 <script>
+  import "../../scripts/synthetic-fields";
   import { $, api, busy, feedback } from "../../scripts/browser";
   import { upload } from "../../scripts/uploads";
   import { appearanceStyles } from "../../lib/appearance";
@@ -318,6 +382,9 @@ const tutorial =
   const steps = [...form.querySelectorAll<HTMLElement>("[data-wizard-step]")];
   function showStep(next: number) {
     step = next;
+    $("#store-guide")?.dispatchEvent(
+      new CustomEvent("guide:scene", { detail: step }),
+    );
     steps.forEach((node, i) => (node.hidden = i !== step));
     document
       .querySelectorAll<HTMLElement>("[data-wizard-indicator]")
@@ -368,6 +435,10 @@ const tutorial =
       .value as StoreAppearance["font"];
     const layout = $<HTMLSelectElement>('[name="layout"]', form)
       .value as StoreAppearance["layout"];
+    const preset = $<HTMLSelectElement>('[name="banner_preset"]', form).value;
+    document
+      .querySelectorAll<HTMLElement>("[data-banner-preset]")
+      .forEach((node) => (node.hidden = node.dataset.bannerPreset !== preset));
     const sample = $("#appearance-preview");
     sample.style.cssText = appearanceStyles({ palette, font, layout });
     sample.dataset.layout = layout;
@@ -406,7 +477,7 @@ const tutorial =
         "painel/loja",
         {
           ...Object.fromEntries(fields),
-          finishSetup: tutorial,
+          finishSetup: false,
           delivery_fee: own.checked
             ? Math.round(Number(fields.get("delivery_fee")) * 100)
             : Math.round(Number(fee.value) * 100),
@@ -421,7 +492,7 @@ const tutorial =
       form.dataset.version = String(Number(form.dataset.version) + 1);
       form.dataset.bannerId = bannerId ?? "";
       feedback("Configurações salvas. A loja já mostra as novas informações.");
-      if (tutorial) location.assign("/painel/catalogo");
+      if (tutorial) location.assign("/painel/catalogo?tutorial=1");
     });
   };
 </script>

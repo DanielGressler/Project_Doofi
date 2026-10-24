@@ -1,10 +1,41 @@
 ---
 import PanelLayout from "../../layouts/PanelLayout.astro";
-import { money } from "../../lib/types";
+import type { Store } from "../../lib/types";
+import NovelGuide from "../../components/NovelGuide.astro";
 import ProductEditor from "../../components/ProductEditor.astro";
 import { env } from "cloudflare:workers";
 import { getProducts } from "../../lib/catalog";
-const products = await getProducts(env.DB, Astro.locals.session!.store_id);
+const [products, store] = await Promise.all([
+  getProducts(env.DB, Astro.locals.session!.store_id),
+  env.DB.prepare("SELECT setup_complete,version FROM stores WHERE id=?")
+    .bind(Astro.locals.session!.store_id)
+    .first<Pick<Store, "setup_complete" | "version">>(),
+]);
+const tutorial =
+  Astro.locals.session!.role === "owner" &&
+  (Astro.url.searchParams.get("tutorial") === "1" || !store!.setup_complete);
+const chapter = Math.min(
+  3,
+  Math.max(0, Math.floor(Number(Astro.url.searchParams.get("capitulo")) || 0)),
+);
+const scenes = [
+  {
+    title: "O rodapé acompanha sua loja",
+    text: "Aqui embaixo ficam os atalhos para loja, carrinho e dados de envio. No painel, o rodapé leva a pedidos, catálogo e configurações. As cores e fontes que você escolheu acompanham toda a página pública, inclusive o rodapé.",
+  },
+  {
+    title: "Seu primeiro produto, sem complicação",
+    text: "Clique em Novo produto para abrir a criação. Preencha nome, descrição, categoria (Doces, Bebidas, Pratos principais, Petiscos ou Lanches) e preço. Marque Indisponível apenas quando não puder vender. Escolha uma ilustração ou envie sua foto: o sistema ajusta a imagem e dá preferência à sua foto.",
+  },
+  {
+    title: "Dois produtos, um combo",
+    text: "Combos têm uma seção própria. Depois de cadastrar dois produtos individuais, clique em Novo combo, escolha os dois itens, dê um nome e defina o preço do conjunto. Se um item ficar indisponível, o combo também para de vender. Você pode criar os produtos depois de concluir este guia.",
+  },
+  {
+    title: "Pronto para testar o atendimento",
+    text: "Os cartões começam fechados: só nome e botão +. Abra para ver os detalhes e editar; use − para minimizar. Em Pedidos, a fila destaca um pedido de cada vez: recusar à esquerda e aceitar à direita. Uma nova chegada aguarda atrás. Frete a combinar precisa primeiro da aprovação do cliente. Conclua para disponibilizar a loja na lista de teste.",
+  },
+];
 ---
 
 <PanelLayout title="Catálogo" active="catalog">
@@ -25,6 +56,57 @@ const products = await getProducts(env.DB, Astro.locals.session!.store_id);
       </button>
     </div>
   </div>
+  {tutorial && (
+    <div data-guide-version={store!.version} id="catalog-tutorial">
+      <NovelGuide id="catalog-guide" scenes={scenes} controls chapter={chapter}>
+        <div
+          class="guide-example"
+          data-guide-preview="0"
+          hidden={chapter !== 0}
+        >
+          <strong>Prévia do rodapé do cliente</strong>
+          <div class="guide-footer-example">
+            <span>doofi.</span>
+            <span>Loja · Carrinho · Dados de envio</span>
+          </div>
+          <a
+            class="inline-link"
+            href={`/loja/${Astro.locals.session!.store_slug}`}
+            target="_blank"
+            rel="noopener"
+          >
+            Ver sua loja e o rodapé ↗
+          </a>
+        </div>
+        <div
+          class="guide-example"
+          data-guide-preview="1"
+          hidden={chapter !== 1}
+        >
+          <strong>Exemplo de produto</strong>
+          <p>Bolo Teste · Doces · R$ 12,00 · Disponível</p>
+          <button
+            class="button button-primary"
+            data-open-dialog="product-dialog"
+          >
+            Experimentar criar produto
+          </button>
+        </div>
+        <div
+          class="guide-example"
+          data-guide-preview="2"
+          hidden={chapter !== 2}
+        >
+          <strong>Exemplo de combo</strong>
+          <p>Café + pão → Café da manhã Teste · R$ 18,00</p>
+          <button class="button button-primary" data-open-dialog="combo-dialog">
+            Experimentar criar combo
+          </button>
+        </div>
+        <p id="guide-feedback" class="feedback" role="alert"></p>
+      </NovelGuide>
+    </div>
+  )}
   <p class="notice">
     As alterações valem para novos pedidos. Deixe a caixa de indisponibilidade
     desmarcada para vender. Nos combos, a indisponibilidade de um dos itens
@@ -57,23 +139,24 @@ const products = await getProducts(env.DB, Astro.locals.session!.store_id);
         {products
           .filter((p) => !!p.is_combo === combo)
           .map((product) => (
-            <details class="catalog-card">
-              <summary>
-                <span>
-                  <strong>{product.title}</strong>
-                  <small>
-                    {product.category} · {money(product.price)}
-                  </small>
-                </span>
-                <span class="badge">
-                  {product.orderable ? "Disponível" : "Indisponível"}
-                </span>
-                <span class="expand-label" aria-hidden="true">
-                  Editar
-                </span>
-              </summary>
-              <ProductEditor product={product} products={products} />
-            </details>
+            <article class="catalog-card">
+              <div class="catalog-card-heading">
+                <h3>{product.title}</h3>
+                <button
+                  type="button"
+                  class="catalog-toggle"
+                  data-product-toggle={product.title}
+                  aria-expanded="false"
+                  aria-controls={`editor-${product.id}`}
+                  aria-label={`Mais detalhes de ${product.title}`}
+                >
+                  +
+                </button>
+              </div>
+              <div id={`editor-${product.id}`} hidden>
+                <ProductEditor product={product} products={products} />
+              </div>
+            </article>
           ))}
       </div>
       {!products.some((p) => !!p.is_combo === combo) && (
@@ -111,5 +194,22 @@ const products = await getProducts(env.DB, Astro.locals.session!.store_id);
 </PanelLayout>
 <script>
   import "../../scripts/dialogs";
+  import "../../scripts/catalog-cards";
+  import { $, api, busy } from "../../scripts/browser";
+  $("[data-guide-finish]")?.addEventListener("click", (event) => {
+    void busy(event.currentTarget as HTMLButtonElement, async () => {
+      try {
+        await api(
+          "painel/guia/concluir",
+          { version: Number($("#catalog-tutorial").dataset.guideVersion) },
+          "POST",
+          $("#panel-app").dataset.csrf,
+        );
+        location.assign("/painel/pedidos");
+      } catch (error) {
+        $("#guide-feedback").textContent = (error as Error).message;
+      }
+    });
+  });
   import "../../scripts/catalog-editor";
 </script>

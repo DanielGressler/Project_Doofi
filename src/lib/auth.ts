@@ -11,6 +11,7 @@ import {
 } from "./core";
 import type { AuthenticatedSession, Session } from "./types";
 import { cookieToken, sessionCookie } from "./session-cookie";
+import { syntheticError } from "./synthetic-data";
 export { cookieToken } from "./session-cookie";
 export async function getSession(
   db: D1Database,
@@ -54,10 +55,13 @@ export async function login(
   input: Record<string, unknown>,
 ) {
   const email = textField(input.email, "E-mail", 3, 120).toLowerCase();
+  const emailError = syntheticError("email", email);
+  if (emailError)
+    throw new AppError(422, emailError, "SYNTHETIC_DATA_REQUIRED");
   const password = textField(input.password, "Senha", 1, 128);
   const user = await db
     .prepare(
-      "SELECT u.id,u.salt,u.password_hash,m.store_id,m.role,t.setup_complete FROM users u JOIN store_memberships m ON m.user_id=u.id AND m.active=1 JOIN stores t ON t.id=m.store_id AND t.active=1 WHERE u.email=? AND u.active=1",
+      "SELECT u.id,u.salt,u.password_hash,m.store_id,m.role,t.setup_complete,t.version AS store_version FROM users u JOIN store_memberships m ON m.user_id=u.id AND m.active=1 JOIN stores t ON t.id=m.store_id AND t.active=1 WHERE u.email=? AND u.active=1",
     )
     .bind(email)
     .first<{
@@ -67,6 +71,7 @@ export async function login(
       password_hash: string;
       role: Session["role"];
       setup_complete: number;
+      store_version: number;
     }>();
   const derived = await passwordHash(
     password,
@@ -126,7 +131,11 @@ export async function login(
   return {
     csrfToken: csrf,
     setCookie: sessionCookie(token, request, 28800),
-    next: user.setup_complete ? "/painel/pedidos" : "/painel/loja?tutorial=1",
+    next: user.setup_complete
+      ? "/painel/pedidos"
+      : user.store_version > 0
+        ? "/painel/catalogo?tutorial=1"
+        : "/painel/loja?tutorial=1",
   };
 }
 export async function register(
@@ -136,6 +145,17 @@ export async function register(
 ) {
   const title = textField(input.title, "Nome da loja", 2, 80);
   const email = textField(input.email, "E-mail", 3, 120).toLowerCase();
+  const fakeError = syntheticError("email", email);
+  if (fakeError) throw new AppError(422, fakeError, "SYNTHETIC_DATA_REQUIRED");
+  const contact = textField(
+    input.contact ?? "(00) 00000-0000",
+    "Telefone fictício",
+    3,
+    40,
+  );
+  const phoneError = syntheticError("phone", contact);
+  if (phoneError)
+    throw new AppError(422, phoneError, "SYNTHETIC_DATA_REQUIRED");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     throw new AppError(
       422,
@@ -161,9 +181,9 @@ export async function register(
       db
         .prepare(
           `INSERT INTO stores (id,slug,title,description,contact,pickup_address,hours,is_open,delivery_fee,neighborhoods,theme,has_own_delivery,setup_complete)
-        VALUES (?,?,?,'Produtos da nossa loja fictícia.','(00) 00000-0000','Rua de Exemplo, 10','Segunda a sábado, 9h às 18h',0,0,'Centro','terracotta',0,0)`,
+        VALUES (?,?,?,'Produtos da nossa loja fictícia.',?,'Rua de Exemplo, 10','Segunda a sábado, 9h às 18h',0,0,'Centro','bakery',0,0)`,
         )
-        .bind(storeId, slug, title),
+        .bind(storeId, slug, title, contact),
       db
         .prepare(
           "INSERT INTO store_memberships (store_id,user_id,role) VALUES (?,?,'owner')",

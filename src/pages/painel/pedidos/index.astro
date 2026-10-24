@@ -56,6 +56,17 @@ import Icon from "../../../components/Icon.astro";
       Atualizar
     </button>
   </div>
+  <button
+    type="button"
+    class="button button-quiet"
+    id="enable-order-alerts"
+    aria-pressed="false"
+  >
+    Ativar som de novos pedidos
+  </button>
+  <p class="small muted" id="alert-status" role="status">
+    Os pedidos aparecem automaticamente com esta aba aberta. O som é opcional.
+  </p>
   <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
   <div id="order-list" class="order-list" aria-label="Pedidos da loja">
     <p class="muted small">Consultando pedidos...</p>
@@ -77,9 +88,15 @@ import Icon from "../../../components/Icon.astro";
     ></p>
     <div id="queue-stack" class="queue-stack">
       <section class="queue-card">
-        <p id="queue-customer"></p>
-        <p id="queue-location" class="queue-location"></p>
-        <ul id="queue-items" class="queue-items"></ul>
+        <div class="queue-products">
+          <span class="eyebrow">ACABOU DE CHEGAR</span>
+          <h3>O que vamos preparar?</h3>
+          <ul id="queue-items" class="queue-items"></ul>
+        </div>
+        <div class="queue-destination">
+          <p id="queue-customer"></p>
+          <p id="queue-location" class="queue-location"></p>
+        </div>
         <div class="total-row">
           <span>Produtos</span>
           <strong id="queue-subtotal"></strong>
@@ -88,7 +105,7 @@ import Icon from "../../../components/Icon.astro";
           <span>Entrega</span>
           <strong id="queue-fee"></strong>
         </div>
-        <div class="total-row grand">
+        <div class="total-row grand queue-value">
           <span>Total</span>
           <strong id="queue-total"></strong>
         </div>
@@ -121,9 +138,6 @@ import Icon from "../../../components/Icon.astro";
               />
             </label>
           </div>
-          <button type="submit" class="button button-primary">
-            Enviar proposta de frete
-          </button>
         </form>
         <label class="field">
           <span>Motivo para recusar</span>
@@ -135,16 +149,25 @@ import Icon from "../../../components/Icon.astro";
           />
         </label>
         <div class="queue-actions">
-          <button id="queue-accept" type="button" class="button button-primary">
-            Aceitar pedido
+          <button id="queue-reject" type="button" class="button queue-reject">
+            <span aria-hidden="true">×</span> Recusar pedido
           </button>
-          <button id="queue-reject" type="button" class="button button-quiet">
-            Recusar pedido
+          <button id="queue-accept" type="button" class="button queue-accept">
+            <span aria-hidden="true">✓</span> Aceitar pedido
           </button>
-          <a id="queue-detail" class="inline-link">
-            Ver detalhes
-          </a>
+          <button
+            id="queue-propose"
+            form="queue-quote"
+            type="submit"
+            class="button queue-accept"
+            hidden
+          >
+            Enviar proposta de frete
+          </button>
         </div>
+        <a id="queue-detail" class="inline-link">
+          Ver detalhes
+        </a>
       </section>
     </div>
     <p id="queue-feedback" class="feedback" role="alert"></p>

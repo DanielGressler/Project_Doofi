@@ -91,7 +91,7 @@ async function order(
     items: [{ productId: shop.product, quantity: 1 }],
     fulfillment: "FIXED",
     payment: "PIX_SIMULATED",
-    name: `Cliente privado ${shop.id}`,
+    name: `Cliente Teste privado ${shop.id}`,
     phone: "00000000",
     email: `privado-${shop.id}@exemplo.invalid`,
     address: `Endereço privado ${shop.id}`,
@@ -516,7 +516,7 @@ it("checkout não mistura produtos, intentos ou componentes entre empresas", asy
     payment: "PIX_SIMULATED",
     name: "Teste fictício",
     phone: "00000000",
-    email: "teste.invalid",
+    email: "teste@exemplo.invalid",
     consent: true,
     syntheticData: true,
   };
@@ -580,7 +580,7 @@ it("cada token e nonce autoriza apenas seu pedido e não divulga dados privados"
       ])
         expect(data).not.toHaveProperty(key);
       const serialized = JSON.stringify(data);
-      expect(serialized).not.toContain("Cliente privado");
+      expect(serialized).not.toContain("Cliente Teste privado");
       expect(serialized).not.toContain("Endereço privado");
       expect(serialized).not.toContain("Observação privada");
       expect(serialized).not.toContain("privado-store-");

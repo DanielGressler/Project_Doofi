@@ -49,7 +49,7 @@ const input = async (id: string, fulfillment = "PICKUP") => ({
   payment: "PIX_SIMULATED",
   name: "Cliente teste",
   phone: "00000000",
-  email: "teste.invalid",
+  email: "teste@exemplo.invalid",
   consent: true,
   syntheticData: true,
   address: "Rua de teste, 1",

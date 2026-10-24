@@ -65,35 +65,6 @@ body:has(dialog[open]) {
   background: #fffdf8;
   min-width: 0;
 }
-.catalog-card[open] {
-  grid-column: 1 / -1;
-}
-.catalog-card summary {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 18px;
-  list-style: none;
-}
-.catalog-card summary > span:first-child {
-  flex: 1;
-  min-width: 0;
-}
-.catalog-card summary strong,
-.catalog-card summary small {
-  display: block;
-  overflow-wrap: anywhere;
-}
-.catalog-card summary small {
-  margin-top: 4px;
-  color: #65665e;
-  font-size: 12px;
-}
-.expand-label {
-  font-size: 12px;
-  text-decoration: underline;
-}
 .catalog-card .product-form {
   border: 0;
   border-top: 1px solid var(--line, #dedbd2);
@@ -349,14 +320,6 @@ body:has(dialog[open]) {
   .compact-catalog {
     grid-template-columns: minmax(0, 1fr);
   }
-  .catalog-card summary {
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 14px;
-  }
-  .catalog-card summary > span:first-child {
-    flex-basis: 100%;
-  }
   .cart-dock {
     padding: 10px;
     gap: 8px;
@@ -423,4 +386,433 @@ body:has(dialog[open]) {
 .cart-page > .muted {
   font-size: 13px;
   line-height: 1.4;
+}
+
+/* Entry, visual-novel guide and compact catalogue. */
+.entry-page {
+  padding-block: 36px 60px;
+  text-align: center;
+}
+.entry-page h1 {
+  font-size: clamp(36px, 5vw, 64px);
+  line-height: 1.12;
+  margin: 18px 0;
+}
+.entry-page h1 em {
+  color: var(--accent);
+}
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  max-width: 960px;
+  margin: 34px auto;
+}
+.role-card {
+  text-align: left;
+  border: 1px solid #34382e;
+  border-radius: 24px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  background: #f3e8d8;
+  animation: guide-enter 0.5s ease both;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+.role-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px #29362818;
+}
+.role-merchant {
+  background: #e6ebdc;
+  animation-delay: 0.1s;
+}
+.role-card h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 30px;
+  margin: 12px 0;
+}
+.role-card p {
+  flex: 1;
+}
+.role-action {
+  font-weight: 700;
+  margin-top: 18px;
+}
+.role-art {
+  height: 140px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 20px;
+  overflow: hidden;
+  color: #41613a;
+}
+.role-art > svg {
+  max-height: 140px;
+  width: auto;
+}
+.directory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr));
+  gap: 22px;
+}
+.directory-card {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+}
+.directory-card h2 {
+  margin: 16px 0 8px;
+}
+.directory-card > p:first-of-type {
+  flex: 1;
+}
+.directory-card .button {
+  margin-top: 16px;
+}
+.directory-art {
+  height: 170px;
+  width: 100%;
+  background: #f2ecde;
+  border-radius: 12px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  margin-bottom: 20px;
+}
+.directory-art svg {
+  height: 170px;
+  width: auto;
+  max-width: 100%;
+}
+.directory-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.directory-pages {
+  display: flex;
+  gap: 16px;
+  margin-top: 24px;
+}
+.novel-guide {
+  background: linear-gradient(120deg, #f1e5d5, #f9f3e8);
+  border: 2px solid #353a31;
+  border-radius: 18px;
+  padding: 22px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.novel-stage {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+}
+.novel-character {
+  color: #ac3e25;
+  animation: guide-float 3s ease-in-out infinite;
+}
+.novel-eyes {
+  transform-origin: 80px 74px;
+  animation: guide-blink 5s infinite;
+}
+.novel-speaker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.novel-dialogue h2 {
+  font-size: clamp(20px, 2.5vw, 26px);
+  line-height: 1.25;
+  margin: 8px 0 12px;
+}
+.novel-dialogue [data-guide-chapter] {
+  margin: 5px 0;
+}
+.novel-dialogue [data-guide-text] {
+  margin: 0;
+  line-height: 1.65;
+  font-size: 14px;
+}
+.novel-controls {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+.guide-example {
+  padding: 18px;
+  border: 1px dashed #777369;
+  border-radius: 10px;
+  margin-top: 20px;
+  background: #fffdf8;
+}
+.guide-example p {
+  margin: 12px 0;
+}
+.guide-footer-example {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 18px 0;
+  margin: 8px 0;
+  border-block: 1px solid #ddd4c8;
+  font-size: 13px;
+}
+.login-card:has(#register-form:not([hidden])) {
+  max-width: 100%;
+}
+.login-card .novel-stage {
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 14px;
+}
+.login-card .novel-character svg {
+  width: 70px;
+  height: 70px;
+}
+.login-card .novel-guide {
+  padding: 16px;
+}
+.catalog-card.is-expanded {
+  grid-column: 1/-1;
+}
+.catalog-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+}
+.catalog-card-heading h3 {
+  font-family: var(--font-body, "DM Sans Variable", sans-serif);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  margin: 0;
+  flex: 1;
+}
+.catalog-toggle {
+  flex-shrink: 0;
+  border: 1px solid #34382e;
+  background: #f3eee1;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+  font-size: 26px;
+  line-height: 1;
+}
+.catalog-toggle:hover {
+  background: #e6dfcd;
+}
+/* Product names lead the decision; the two actions stay at opposite bottom corners. */
+#order-queue {
+  width: min(590px, calc(100% - 24px));
+}
+.queue-products {
+  background: #e8f0dc;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.queue-products h3 {
+  margin: 8px 0 12px;
+  font-size: 24px;
+}
+.queue-products .queue-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 22dvh;
+}
+.queue-items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  border-top: 1px solid #c8d4bd;
+  padding: 10px 0;
+  font-size: 15px;
+}
+.queue-items li strong {
+  overflow-wrap: anywhere;
+}
+.queue-items li span {
+  white-space: nowrap;
+}
+.queue-destination {
+  text-align: center;
+}
+#queue-customer {
+  font-weight: 700;
+}
+.queue-value {
+  background: #f5de93;
+  color: #343000;
+  padding: 14px;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+#queue-total {
+  font-size: clamp(28px, 5vw, 38px);
+  font-weight: 800;
+}
+.queue-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 20px 0 16px;
+}
+.queue-actions .button {
+  min-height: 60px;
+  padding: 12px 8px;
+  font-weight: 800;
+  white-space: normal;
+}
+.queue-actions .button span {
+  font-size: 24px;
+}
+.queue-reject {
+  grid-column: 1;
+  background: #ffe2e2;
+  color: #8b202d;
+  border: 2px solid #8b202d;
+}
+.queue-accept {
+  grid-column: 2;
+  background: #d3f0d9;
+  color: #145631;
+  border: 2px solid #145631;
+}
+.queue-reject:hover {
+  background: #ffd0d4;
+}
+.queue-accept:hover {
+  background: #bce6c6;
+}
+@keyframes guide-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes guide-float {
+  50% {
+    transform: translateY(-5px) rotate(-3deg);
+  }
+}
+@keyframes guide-blink {
+  0%,
+  43%,
+  47%,
+  100% {
+    transform: scaleY(1);
+  }
+  45% {
+    transform: scaleY(0.1);
+  }
+}
+@media (max-width: 700px) {
+  .role-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .role-card {
+    padding: 22px;
+  }
+  .role-art {
+    height: 100px;
+  }
+  .role-art > svg {
+    max-height: 100px;
+  }
+  .novel-stage {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+  }
+  .novel-character svg {
+    width: 64px;
+    height: 64px;
+  }
+  .novel-guide {
+    padding: 16px;
+  }
+  .novel-controls .button {
+    font-size: 12px;
+    padding: 12px;
+  }
+  .queue-products {
+    padding: 12px;
+  }
+  .queue-actions {
+    gap: 10px;
+  }
+  .queue-actions .button {
+    font-size: 12px;
+  }
+  .queue-items li {
+    font-size: 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .role-card,
+  .novel-character,
+  .novel-eyes {
+    animation: none;
+  }
+  .role-card {
+    transition: none;
+  }
+  .role-card:hover {
+    transform: none;
+  }
+}
+
+.banner-preset-preview {
+  background: #f1e8d9;
+  border: 1px solid #ded5ca;
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+  overflow: hidden;
+}
+.banner-preset-preview > div {
+  height: 150px;
+}
+.banner-preset-preview svg {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+}
+.banner-preset-preview > p {
+  margin: 10px 0 0;
+}
+@media (max-width: 700px) {
+  .site-header {
+    height: auto;
+    min-height: 78px;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-block: 14px;
+  }
+  .site-header nav {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .wizard-actions {
+    flex-wrap: wrap;
+  }
+  .wizard-actions .button {
+    max-width: 100%;
+  }
 }

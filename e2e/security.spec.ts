@@ -64,7 +64,7 @@ test("envio incerto mantém os dados originais visíveis e bloqueia edição sil
   await checkout(page);
   await page
     .getByLabel("Nome fictício", { exact: true })
-    .fill("Pessoa Original");
+    .fill("Pessoa Teste Original");
   await page.locator('[name="consent"]').check();
   await page.route("**/api/v1/lojas/casa-do-forno/pedidos", (route) =>
     route.abort("failed"),
@@ -82,7 +82,7 @@ test("envio incerto mantém os dados originais visíveis e bloqueia edição sil
   );
   await page.reload();
   await expect(page.getByLabel("Nome fictício", { exact: true })).toHaveValue(
-    "Pessoa Original",
+    "Pessoa Teste Original",
   );
   await expect(
     page.getByLabel("Nome fictício", { exact: true }),
@@ -104,7 +104,7 @@ test("envio incerto mantém os dados originais visíveis e bloqueia edição sil
   const stored = await page.evaluate(() =>
     Object.values(sessionStorage).join(" "),
   );
-  expect(stored).not.toContain("Pessoa Original");
+  expect(stored).not.toContain("Pessoa Teste Original");
   expect(stored).not.toContain("cliente@exemplo.invalid");
 });
 test("cookie legado é migrado sem trocar a conta ou estender a sessão", async ({
@@ -144,7 +144,7 @@ test("rascunho expirado não revela contatos nem reutiliza o checkout anterior",
   await checkout(page);
   await page
     .getByLabel("Nome fictício", { exact: true })
-    .fill("Pessoa Expirada");
+    .fill("Pessoa Teste Expirada");
   await page.locator('[name="consent"]').check();
   await page.route("**/api/v1/lojas/casa-do-forno/pedidos", (route) =>
     route.abort("failed"),
@@ -188,7 +188,7 @@ test("XSS persistente nos dados de envio fica como texto e não chega ao acompan
         items: [{ productId: "a-pao", quantity: 1 }],
         fulfillment: "FIXED",
         payment: "PIX_SIMULATED",
-        name: payload,
+        name: "Cliente Teste XSS",
         phone: "00000000",
         email: "xss@exemplo.invalid",
         address: payload,
@@ -237,7 +237,7 @@ test("resposta confirmada remove contatos antes da navegação e recupera soment
   await checkout(page);
   await page
     .getByLabel("Nome fictício", { exact: true })
-    .fill("Pessoa Confirmada");
+    .fill("Pessoa Teste Confirmada");
   await page
     .getByLabel("E-mail fictício", { exact: true })
     .fill("confirmada@exemplo.invalid");
@@ -260,5 +260,5 @@ test("resposta confirmada remove contatos antes da navegação e recupera soment
   }));
   expect(stored.draft).toBeNull();
   expect(stored.receipt).not.toContain("confirmada@exemplo.invalid");
-  expect(stored.receipt).not.toContain("Pessoa Confirmada");
+  expect(stored.receipt).not.toContain("Pessoa Teste Confirmada");
 });

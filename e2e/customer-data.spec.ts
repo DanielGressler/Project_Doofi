@@ -19,7 +19,7 @@ test("cliente informa dados de envio após o carrinho e a loja os consulta com o
   await expect(page.locator('input[type="password"]')).toHaveCount(0);
   await page
     .getByRole("textbox", { name: /^Nome fictício/ })
-    .fill("Pessoa de Entrega");
+    .fill("Pessoa Teste de Entrega");
   await page
     .getByRole("textbox", { name: /^Telefone fictício/ })
     .fill("(00) 00000-5678");
@@ -53,7 +53,7 @@ test("cliente informa dados de envio após o carrinho e a loja os consulta com o
     await pauseQueue(merchant);
     await merchant.getByRole("link").filter({ hasText: protocol }).click();
     await expect(merchant.locator("#order-detail")).toContainText(
-      "Pessoa de Entrega",
+      "Pessoa Teste de Entrega",
     );
     await expect(merchant.locator("#order-detail")).toContainText(
       "(00) 00000-5678",

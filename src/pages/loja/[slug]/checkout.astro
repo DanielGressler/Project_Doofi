@@ -71,11 +71,16 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
       <div class="checkout-fields">
         <section class="card">
           <h2>Quem vai receber?</h2>
+          <p class="small muted">
+            Use um nome com Teste ou Exemplo, telefone com DDD 00 e e-mail
+            @exemplo.invalid. Dados reais são bloqueados neste protótipo.
+          </p>
           <div class="form-grid contact-grid">
             <label class="field">
               <span>Nome fictício</span>
               <input
                 name="name"
+                data-synthetic="name"
                 value="Cliente Exemplo"
                 required
                 minlength="2"
@@ -87,6 +92,7 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
               <span>Telefone fictício</span>
               <input
                 name="phone"
+                data-synthetic="phone"
                 type="tel"
                 value="(00) 00000-0000"
                 required
@@ -99,6 +105,7 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
               <span>E-mail fictício</span>
               <input
                 name="email"
+                data-synthetic="email"
                 inputmode="email"
                 value="cliente@exemplo.invalid"
                 required
@@ -253,4 +260,5 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
 </Layout>
 <script>
   import "../../../scripts/checkout";
+  import "../../../scripts/synthetic-fields";
 </script>

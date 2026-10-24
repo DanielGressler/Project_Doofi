@@ -34,7 +34,7 @@ test("combo, filtro por categoria e indisponibilidade do componente", async ({
   await form.getByLabel("Preço do combo (R$)").fill("29.00");
   await form.getByRole("button", { name: "Criar combo", exact: true }).click();
   await expect(
-    page.locator(".catalog-card summary strong").filter({ hasText: title }),
+    page.locator(".catalog-card-heading h3").filter({ hasText: title }),
   ).toBeVisible();
   const context = await browser.newContext(),
     shop = await context.newPage();
@@ -155,6 +155,9 @@ test("personalização e taxa fixa condicionada a entregador próprio", async ({
   await page
     .getByLabel("Estilo das fontes", { exact: true })
     .selectOption("simple");
+  await page
+    .getByLabel("Banner ilustrado pronto", { exact: true })
+    .selectOption("sweets");
   await page.getByLabel("Banner da loja (opcional)").setInputFiles({
     name: "banner.jpg",
     mimeType: "image/jpeg",
@@ -191,6 +194,15 @@ test("personalização e taxa fixa condicionada a entregador próprio", async ({
   await expect(page.locator("#feedback")).toContainText("Configurações salvas");
   await shop.reload();
   await expect(shop.locator('input[value="FIXED"]')).toHaveCount(1);
+  await shop.goto("/loja/casa-do-forno");
+  await expect(shop.locator("img.store-banner")).toHaveCount(0);
+  await expect(shop.locator(".hero-visual .product-art")).toBeVisible();
+  await page
+    .getByLabel("Banner ilustrado pronto", { exact: true })
+    .selectOption("bakery");
+  await page.getByLabel("Remover banner e voltar à ilustração").uncheck();
+  await page.getByRole("button", { name: "Salvar configurações" }).click();
+  await expect(page.locator("#feedback")).toContainText("Configurações salvas");
   await context.close();
   await verifyGlobalTheme(page, browser);
 });

@@ -10,7 +10,12 @@ const session = Astro.locals.session!;
 ---
 
 <Layout title={title} panel>
-  <div class="wrap panel-layout" id="panel-app" data-csrf={session.csrf_token}>
+  <div
+    class="wrap panel-layout"
+    id="panel-app"
+    data-csrf={session.csrf_token}
+    data-store-id={session.store_id}
+  >
     <aside class="panel-nav" aria-label="Menu do lojista">
       <div class="panel-store">
         <strong>{session.store_title}</strong>

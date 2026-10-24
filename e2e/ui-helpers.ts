@@ -9,12 +9,10 @@ export async function pauseQueue(page: Page) {
 export async function openEditor(page: Page, title: string) {
   const card = page
     .locator(".catalog-card")
-    .filter({ has: page.locator("summary strong", { hasText: title }) });
+    .filter({ has: page.locator("h3", { hasText: title }) });
   await expect(card).toBeVisible();
-  if (!(await card.getAttribute("open"))) {
-    // Boolean attributes have an empty value when present.
-    if (!(await card.evaluate((node) => (node as HTMLDetailsElement).open)))
-      await card.locator("summary").click();
-  }
+  const toggle = card.locator("[data-product-toggle]");
+  if ((await toggle.getAttribute("aria-expanded")) !== "true")
+    await toggle.click();
   return card.locator(".product-form");
 }

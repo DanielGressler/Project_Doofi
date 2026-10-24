@@ -12,7 +12,7 @@ A [auditoria de isolamento](docs/AUDITORIA_ISOLAMENTO.md) cobre empresas, client
 
 O checkout solicita nome, telefone e e-mail fictícios, além do endereço para entrega. Os [dados de envio do cliente](docs/DADOS_ENVIO_CLIENTE.md) são vinculados ao pedido por chave estrangeira, sem criar conta ou exigir senha/código do cliente. As migrações até `0007_onboarding_fila.sql` devem ser aplicadas antes do deploy; o login das lojas permanece igual.
 
-A interface agora separa **cardápio → carrinho → dados e entrega → acompanhamento**. O catálogo usa cartões recolhidos e pop-ups para novos produtos/combos; a fila de pedidos destaca uma decisão de cada vez. Novas lojas fictícias têm cadastro simples e um assistente de configuração. Consulte o [guia da interface e atualização](docs/ATUALIZACAO_UX.md).
+A interface agora separa **cardápio → carrinho → dados e entrega → acompanhamento**. O catálogo usa cartões recolhidos e pop-ups para novos produtos/combos; a fila de pedidos destaca uma decisão de cada vez. Novas lojas fictícias têm cadastro simples e um guia animado com diálogos para personalização, rodapé, produtos e combos. Os cartões mostram apenas nome e botão **+** quando fechados; o pop-up de pedidos destaca produtos, total e decisões nas extremidades inferiores. Consulte o [guia da interface e atualização](docs/ATUALIZACAO_UX.md).
 
 A [auditoria de segurança do cliente](docs/AUDITORIA_SEGURANCA_CLIENTE.md) cobre cookies restritos ao painel, rascunhos com expiração e recuperação sem mistura de dados, além de SQL injection, XSS, CSRF e isolamento empresarial. O cliente continua sem login. Execute `npm ci` ao atualizar esta versão: o lockfile inclui correções transitivas de segurança.
 
@@ -28,14 +28,14 @@ npm run db:seed
 npm run dev
 ```
 
-Abra no navegador local a porta **4321**. A rota `/` abre a Casa do Forno; `/demo` contém o roteiro completo e os acessos das duas lojas. O painel está em `/painel/entrar`.
+Abra no navegador local a porta **4321**. A rota `/` mostra **Sou cliente** e **Sou lojista**. O cliente segue para `/lojas`, com as lojas ativas que concluíram a configuração. O lojista segue para `/painel/entrar`. O endereço antigo `/demo` redireciona para essa entrada.
 
 | Loja          | Catálogo              | E-mail de teste         |
 | ------------- | --------------------- | ----------------------- |
 | Casa do Forno | `/loja/casa-do-forno` | `forno@demo.doofi.test` |
 | Verde à Mesa  | `/loja/verde-mesa`    | `verde@demo.doofi.test` |
 
-Senha pública das duas contas: **`demo-doofi-P1!`**. É uma fixture de desenvolvimento, sem acesso a serviços externos. O checkout já sugere nome, contato e endereço inventados; marque a confirmação de dados fictícios para enviar.
+Senha pública das duas contas: **`demo-doofi-P1!`**. É uma fixture de desenvolvimento, sem acesso a serviços externos. O checkout já sugere nome, contato e endereço inventados; marque a confirmação de dados fictícios para enviar. Nome deve conter Teste, Exemplo, Demo ou Fictício; telefone usa DDD 00; e-mail usa domínio reservado, como `cliente@exemplo.invalid`. E-mails de provedores reais são bloqueados no formulário e no backend, sem enviar mensagens.
 
 O seed usa `INSERT OR IGNORE`: pode ser repetido sem apagar pedidos ou sobrescrever configurações da loja. O D1 local persiste em `.wrangler/state`; sessões, pedidos e dependências sobrevivem à parada do servidor, mas o processo precisa ser iniciado novamente.
 

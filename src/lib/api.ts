@@ -1,6 +1,12 @@
 import { AppError, body, originCheck, rateLimit } from "./core";
 import { getSession, login, logout, register, requireSession } from "./auth";
-import { getProducts, getStore, saveProduct, saveStore } from "./catalog";
+import {
+  getProducts,
+  getStore,
+  saveProduct,
+  saveStore,
+  finishStoreGuide,
+} from "./catalog";
 import {
   confirmSimulatedPayment,
   createOrder,
@@ -159,6 +165,8 @@ export async function handleApi(
         if (method === "PATCH")
           return json(await saveStore(db, session, await body(request)));
       }
+      if (path === "painel/guia/concluir" && method === "POST")
+        return json(await finishStoreGuide(db, session, await body(request)));
       if (path === "painel/catalogo" && method === "GET")
         return json(
           (await getProducts(db, session.store_id)).map(panelProduct),

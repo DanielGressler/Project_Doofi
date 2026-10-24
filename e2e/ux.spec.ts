@@ -57,6 +57,7 @@ test("cadastro leva ao roteiro, salva o visual e mantém o catálogo exclusivo",
   await page
     .getByRole("button", { name: "Criar minha loja", exact: true })
     .click();
+  await audit(page);
   await page.getByLabel("Nome da nova loja").fill("Doces do tutorial");
   await page
     .getByLabel("E-mail da nova loja")
@@ -84,22 +85,49 @@ test("cadastro leva ao roteiro, salva o visual e mantém o catálogo exclusivo",
   await page
     .getByLabel("Layout da página", { exact: true })
     .selectOption("compact");
+  await page
+    .getByLabel("Banner ilustrado pronto", { exact: true })
+    .selectOption("sweets");
+  await expect(page.locator("#store-guide [data-guide-title]")).toContainText(
+    "visual da loja inteira",
+  );
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({
+    path: "docs/evidencias/guia-personalizacao-mobile.png",
+    fullPage: true,
+  });
   await page.getByRole("button", { name: "Próximo" }).click();
   await expect(page.locator("#wizard-review")).toContainText("Doces da Vila");
   await audit(page);
-  await page
-    .getByRole("button", { name: "Concluir e cadastrar produtos" })
-    .click();
-  await expect(page).toHaveURL(/painel\/catalogo$/);
+  await page.getByRole("button", { name: "Salvar e continuar o guia" }).click();
+  await expect(page).toHaveURL(/painel\/catalogo\?tutorial=1&capitulo=0$/);
   await expect(page.locator(".catalog-card")).toHaveCount(0);
   const store = await (await page.request.get("/painel/api/v1/loja")).json();
   expect(store).toMatchObject({
     title: "Doces da Vila",
     palette: "ocean",
     layout: "compact",
-    setup_complete: 1,
+    theme: "sweets",
+    setup_complete: 0,
     is_open: 0,
   });
+  for (const heading of [
+    "Seu primeiro produto",
+    "Dois produtos",
+    "Pronto para testar",
+  ]) {
+    await page.locator("#catalog-guide [data-guide-next]").click();
+    await expect(
+      page.locator("#catalog-guide [data-guide-title]"),
+    ).toContainText(heading);
+  }
+  await audit(page);
+  await page.locator("[data-guide-finish]").click();
+  await expect(page).toHaveURL(/painel\/pedidos$/);
+  expect(
+    (await (await page.request.get("/painel/api/v1/loja")).json())
+      .setup_complete,
+  ).toBe(1);
   await page.getByRole("button", { name: "Sair", exact: true }).click();
   await page.getByLabel("E-mail de demonstração").fill("forno@demo.doofi.test");
   await page.getByRole("button", { name: "Entrar no painel" }).click();
@@ -113,7 +141,7 @@ test("catálogo compacto, pop-ups com teclado e combos em seção própria", asy
   await expect(page).toHaveURL(/painel\/pedidos$/);
   await pauseQueue(page);
   await page.goto("/painel/catalogo");
-  await expect(page.locator(".catalog-card[open]")).toHaveCount(0);
+  await expect(page.locator(".catalog-card.is-expanded")).toHaveCount(0);
   await page.setViewportSize({ width: 320, height: 800 });
   const button = page.getByRole("button", { name: "Novo produto" });
   await button.click();
@@ -128,8 +156,18 @@ test("catálogo compacto, pop-ups com teclado e combos em seção própria", asy
     page.getByRole("dialog", { name: "Criar combo", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Fechar criação" }).click();
-  await page.locator(".catalog-card summary").first().click();
-  await expect(page.locator(".catalog-card[open]")).toHaveCount(1);
+  await page.locator(".catalog-card [data-product-toggle]").first().click();
+  await expect(page.locator(".catalog-card.is-expanded")).toHaveCount(1);
+  const expanded = page.locator(".catalog-card.is-expanded");
+  await expect(expanded.locator("[data-product-toggle]")).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  await expanded.locator("[data-product-toggle]").click();
+  await expect(page.locator(".catalog-card.is-expanded")).toHaveCount(0);
+  await expect(
+    page.locator(".catalog-card .product-form").first(),
+  ).toBeHidden();
   await audit(page);
 });
 async function prepare(request: APIRequestContext) {
@@ -216,6 +254,22 @@ test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõ
   await expect(page.locator("#queue-title")).toContainText(first.protocol);
   await expect(page.locator("#queue-items")).toContainText("Doce fictício");
   await expect(page.locator("#queue-total")).toContainText("10,00");
+  const reject = await page.locator("#queue-reject").boundingBox(),
+    accept = await page.locator("#queue-accept").boundingBox();
+  expect(reject!.x).toBeLessThan(accept!.x);
+  expect(Math.abs(reject!.y - accept!.y)).toBeLessThan(2);
+  expect(
+    await page
+      .locator("#queue-total")
+      .evaluate((node) => Number(getComputedStyle(node).fontWeight)),
+  ).toBeGreaterThanOrEqual(700);
+  await page.locator("#pause-order-queue").click();
+  await page.locator("#enable-order-alerts").click();
+  await expect(page.locator("#enable-order-alerts")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.locator("#open-order-queue").click();
   const second = await create(page.request, store, "FIXED");
   await expect(page.locator("#queue-count")).toContainText(
     "1 pedido(s) atrás",

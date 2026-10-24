@@ -140,14 +140,14 @@ it("campos de conta e chave de outra loja no formulário não alteram o vínculo
   ).toEqual({ n: 0 });
 });
 
-it("campos genéricos fictícios não precisam de validação externa", async () => {
+it("dados reservados de teste são aceitos sem validação externa", async () => {
   const created = await make({
-    phone: "numero ficticio",
-    email: "email ficticio",
+    phone: "(00) 00000-9999",
+    email: "email@exemplo.invalid",
   });
   expect(await details(created.id)).toMatchObject({
-    phone: "numero ficticio",
-    email: "email ficticio",
+    phone: "(00) 00000-9999",
+    email: "email@exemplo.invalid",
   });
 });
 
