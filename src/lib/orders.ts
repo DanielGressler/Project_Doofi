@@ -14,6 +14,8 @@ import {
 } from "./core";
 import { getStore, getProducts } from "./catalog";
 import { assertSyntheticDelivery, deliveryIdentity } from "./customer-data";
+import { allowedOrderTransitions } from "./order-workflow";
+export { transitions } from "./order-workflow";
 import type {
   Order,
   OrderItem,
@@ -365,49 +367,66 @@ export async function createOrder(
   return { id, protocol, status, token, replayed: false };
 }
 
+const ownedOrderSelect = `SELECT o.*,c.phone AS customer_phone,c.email AS customer_email
+      FROM orders o JOIN customer_details c ON c.id=o.customer_id AND c.store_id=o.store_id
+      WHERE o.id=? AND o.store_id=?`;
+async function missingOwnedOrder(
+  db: D1Database,
+  session: Session,
+): Promise<never> {
+  await audit(
+    db,
+    session.store_id,
+    session.user_id,
+    "ACCESS_DENIED",
+    "order",
+  ).run();
+  throw new AppError(404, "Pedido não encontrado.");
+}
 export async function ownedOrder(db: D1Database, session: Session, id: string) {
   const order = await db
-    .prepare(
-      `SELECT o.*,c.phone AS customer_phone,c.email AS customer_email
-      FROM orders o JOIN customer_details c ON c.id=o.customer_id AND c.store_id=o.store_id
-      WHERE o.id=? AND o.store_id=?`,
-    )
+    .prepare(ownedOrderSelect)
     .bind(id, session.store_id)
     .first<Order>();
-  if (!order) {
-    await audit(
-      db,
-      session.store_id,
-      session.user_id,
-      "ACCESS_DENIED",
-      "order",
-    ).run();
-    throw new AppError(404, "Pedido não encontrado.");
-  }
+  if (!order) return missingOwnedOrder(db, session);
   return order;
 }
-export async function orderDetails(
+export async function ownedOrderSnapshot(
   db: D1Database,
-  order: Pick<Order, "id" | "store_id" | "quote_version">,
+  session: Session,
+  id: string,
 ) {
-  const [items, quotes, payments] = await db.batch([
+  // Status, quote and payment must describe the same transactional snapshot.
+  const [orders, items, quotes, payments] = await db.batch([
+    db.prepare(ownedOrderSelect).bind(id, session.store_id),
     db
       .prepare(
         "SELECT product_id,title,price,quantity FROM order_items WHERE order_id=? AND store_id=?",
       )
-      .bind(order.id, order.store_id),
+      .bind(id, session.store_id),
     db
       .prepare(
-        "SELECT id,order_id,store_id,version,fee,estimate,expires_at,accepted_at FROM delivery_quotes WHERE order_id=? AND store_id=? AND version=?",
+        `SELECT q.id,q.order_id,q.store_id,q.version,q.fee,q.estimate,q.expires_at,q.accepted_at
+        FROM delivery_quotes q JOIN orders o ON o.id=q.order_id AND o.store_id=q.store_id AND o.quote_version=q.version
+        WHERE o.id=? AND o.store_id=?`,
       )
-      .bind(order.id, order.store_id, order.quote_version),
+      .bind(id, session.store_id),
     db
       .prepare(
         "SELECT method,status FROM payment_records WHERE order_id=? AND store_id=?",
       )
-      .bind(order.id, order.store_id),
+      .bind(id, session.store_id),
   ]);
+  const order = orders.results[0] as Order | undefined;
+  if (!order) return missingOwnedOrder(db, session);
+  if (!payments.results[0])
+    throw new AppError(
+      500,
+      "Registro de pagamento indisponível.",
+      "PAYMENT_MISSING",
+    );
   return {
+    order,
     items: items.results as OrderItem[],
     quote: (quotes.results[0] as Quote | undefined) ?? null,
     payment: payments.results[0] as Payment,
@@ -573,16 +592,6 @@ export async function publicStatus(db: D1Database, token: string) {
     ),
   };
 }
-export const transitions: Record<string, OrderStatus[]> = {
-  PENDING: ["ACCEPTED", "REJECTED"],
-  QUOTE_PENDING: ["REJECTED"],
-  QUOTE_PROPOSED: ["REJECTED"],
-  QUOTE_ACCEPTED: ["ACCEPTED", "REJECTED"],
-  ACCEPTED: ["PREPARING", "CANCELLED"],
-  PREPARING: ["READY", "OUT_FOR_DELIVERY", "CANCELLED"],
-  READY: ["COMPLETED", "CANCELLED"],
-  OUT_FOR_DELIVERY: ["COMPLETED", "CANCELLED"],
-};
 export async function transition(
   db: D1Database,
   session: Session,
@@ -594,11 +603,7 @@ export async function transition(
   const target = textField(input.status, "Status", 2, 32) as OrderStatus;
   if (order.version !== version)
     throw new AppError(409, "O pedido foi atualizado. Recarregue os dados.");
-  if (
-    !transitions[order.status]?.includes(target) ||
-    (target === "READY" && order.fulfillment !== "PICKUP") ||
-    (target === "OUT_FOR_DELIVERY" && order.fulfillment === "PICKUP")
-  )
+  if (!allowedOrderTransitions(order).includes(target))
     throw new AppError(409, "Esta mudança de status não é permitida.");
   if (target === "ACCEPTED" && order.total === null)
     throw new AppError(

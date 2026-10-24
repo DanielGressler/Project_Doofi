@@ -18,6 +18,8 @@ A [auditoria de segurança do cliente](docs/AUDITORIA_SEGURANCA_CLIENTE.md) cobr
 
 A [revisão das notificações, paleta e guia](docs/NOTIFICACOES_E_GUIA.md) unifica as cores da loja e do painel, destaca os cartões do catálogo e troca a caixa de pular tutorial por um X. O guia aponta para campos reais, um por vez. O aviso de compra usa apenas o cartão central, sem protocolo, e recebe atualizações automáticas preservando a prioridade do pedido em foco.
 
+O atendimento usa a barra **Pedido pronto → Entregar pedido → Confirmar entrega**, sem recarregar a página. O histórico começa recolhido e carrega sob demanda. Apenas confirmações de ações geram avisos pequenos que desaparecem após 20 segundos; erros continuam visíveis. Veja o [fluxo e a auditoria de preparo/entrega](docs/AUDITORIA_PREPARO_ENTREGA.md).
+
 ## Executar
 
 Requisitos: Node 24 (ou >=22.22), npm e Linux/macOS/Windows compatível com workerd. As versões exatas estão em `package-lock.json`.
@@ -45,7 +47,7 @@ O seed usa `INSERT OR IGNORE`: pode ser repetido sem apagar pedidos ou sobrescre
 
 1. Na loja A, adicione pão e café; escolha retirada e envie o pedido.
 2. Guarde a página de acompanhamento. Em outra aba, entre no painel A.
-3. Aceite, prepare, marque pronto para retirar e conclua. Atualize o acompanhamento para ver as mudanças.
+3. Aceite e prepare o pedido. Clique em **Pedido pronto**, depois **Entregar pedido** e **Confirmar entrega**. O acompanhamento atualiza automaticamente; a entrega é apenas uma confirmação manual do lojista.
 4. Repita com taxa fixa; o servidor calcula produtos + frete.
 5. Repita com frete a combinar. No painel, proponha taxa e prazo; no link do comprador, aceite; no painel, confirme o pedido.
 6. Após o aceite do lojista, use “Simular já paguei”. No painel, use a conferência simulada. Declaração e conferência são estados diferentes; nenhum é conciliação bancária.
@@ -93,6 +95,7 @@ Com o preview local iniciado, execute em outro terminal `npm run test:load`. O c
 - [Contratos de API](docs/API.md)
 - [Auditoria de concorrência e desempenho](docs/AUDITORIA_CONCORRENCIA.md)
 - [Auditoria de isolamento](docs/AUDITORIA_ISOLAMENTO.md)
+- [Preparo, entrega e avisos de confirmação](docs/AUDITORIA_PREPARO_ENTREGA.md)
 - [Dados de envio do cliente](docs/DADOS_ENVIO_CLIENTE.md)
 - [Dossiê original v0.9.5](docs/referencia/docs/01_PROTOTIPO_FUNCIONAL.md)
 

@@ -1,5 +1,6 @@
 import { $, api, el, feedback } from "./browser";
 import { money, type Order, type OrderItem } from "../lib/types";
+import { notifyAction } from "./action-notices";
 
 export type QueueEntry = Pick<
   Order,
@@ -173,6 +174,13 @@ export function createOrderQueue(refresh: () => Promise<void>) {
       feedback("", false, "#queue-feedback");
       // Refresh server state before enabling the next decision; never retry a write automatically.
       await refresh();
+      notifyAction(
+        action === "QUOTE"
+          ? "Proposta de frete enviada."
+          : action === "ACCEPTED"
+            ? "Pedido aceito."
+            : "Pedido recusado.",
+      );
     } catch (error) {
       feedback(
         `${(error as Error).message} Estamos conferindo o estado do pedido automaticamente; sua decisão não será reenviada.`,

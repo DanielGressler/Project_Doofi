@@ -1,6 +1,7 @@
 ---
 import Layout from "./Layout.astro";
 import Icon from "../components/Icon.astro";
+import ActionNotices from "../components/ActionNotices.astro";
 import { env } from "cloudflare:workers";
 import type { StoreAppearance } from "../lib/types";
 interface Props {
@@ -70,6 +71,7 @@ const appearance =
       <slot />
     </div>
   </div>
+  <ActionNotices />
 </Layout>
 <script>
   import { $, api, feedback } from "../scripts/browser";

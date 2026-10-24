@@ -12,7 +12,7 @@ import {
   createOrder,
   customerAction,
   issueIntent,
-  orderDetails,
+  ownedOrderSnapshot,
   ownedOrder,
   proposeQuote,
   publicStatus,
@@ -192,10 +192,14 @@ export async function handleApi(
       if (match) {
         const [, id, action] = match;
         if (!action && method === "GET") {
-          const order = await ownedOrder(db, session, id);
+          const { order, ...detail } = await ownedOrderSnapshot(
+            db,
+            session,
+            id,
+          );
           return json({
             ...panelOrder(order),
-            ...(await orderDetails(db, order)),
+            ...detail,
           });
         }
         if (action === "auditoria" && method === "GET") {
@@ -204,7 +208,7 @@ export async function handleApi(
             (
               await db
                 .prepare(
-                  "SELECT action,actor_id,metadata,created_at,correlation_id FROM audit_events WHERE store_id=? AND entity_id=? ORDER BY created_at,rowid",
+                  "SELECT action,actor_id,metadata,created_at,correlation_id FROM (SELECT rowid AS sequence,action,actor_id,metadata,created_at,correlation_id FROM audit_events WHERE store_id=? AND entity_id=? ORDER BY created_at DESC,rowid DESC LIMIT 100) ORDER BY created_at,sequence",
                 )
                 .bind(session.store_id, id)
                 .all()

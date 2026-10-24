@@ -103,9 +103,11 @@ test("J1 · pedido com retirada, pagamento simulado e atendimento completo", asy
   await expect(panel.locator(".detail-layout > aside")).toContainText(
     "conferência do lojista",
   );
-  await transition(panel, "Iniciar preparo", "Em preparo");
-  await transition(panel, "Pronto para retirar", "Pronto para retirar");
-  await transition(panel, "Concluir pedido", "Concluído");
+  await transition(panel, "Pedido pronto", "Pedido pronto");
+  await panel
+    .getByRole("button", { name: "Entregar pedido", exact: true })
+    .click();
+  await transition(panel, "Confirmar entrega", "Concluído");
   await page
     .getByRole("button", { name: "Atualizar pedido", exact: true })
     .click();
@@ -129,9 +131,11 @@ test("J2 · entrega fixa, região e valor final", async ({ page, browser }) => {
   await login(panel);
   await openOrder(panel, protocol);
   await transition(panel, "Aceitar pedido", "Pedido aceito");
-  await transition(panel, "Iniciar preparo", "Em preparo");
-  await transition(panel, "Saiu para entrega", "Saiu para entrega");
-  await transition(panel, "Concluir pedido", "Concluído");
+  await transition(panel, "Pedido pronto", "Pedido pronto");
+  await panel
+    .getByRole("button", { name: "Entregar pedido", exact: true })
+    .click();
+  await transition(panel, "Confirmar entrega", "Concluído");
   await page
     .getByRole("button", { name: "Atualizar pedido", exact: true })
     .click();

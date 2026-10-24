@@ -7,6 +7,9 @@ import {
   issueIntent,
   proposeQuote,
   publicStatus,
+  ownedOrderSnapshot,
+  transition,
+  confirmSimulatedPayment,
 } from "../src/lib/orders";
 import { now, rateLimit, pruneExpired } from "../src/lib/core";
 import { saveProduct } from "../src/lib/catalog";
@@ -340,4 +343,17 @@ it("carrinho com vinte combos e cinquenta anúncios cabe no limite de parâmetro
   const current = await publicStatus(env.DB, created.token);
   expect(current.items).toHaveLength(20);
   expect(current.total).toBe(4000);
+});
+
+it("detalhe do lojista não mistura a versão anterior com uma conferência de pagamento concorrente", async () => {
+  const { intent } = await issueIntent(env.DB, "casa-do-forno");
+  const order = await createOrder(env.DB, "casa-do-forno", payload(intent));
+  await transition(env.DB, owner, order.id, { version: 0, status: "ACCEPTED" });
+  const database = beforeBatchWrite("c.phone AS customer_phone", () =>
+    confirmSimulatedPayment(env.DB, owner, order.id, { version: 1 }),
+  );
+  const snapshot = await ownedOrderSnapshot(database, owner, order.id);
+  expect(snapshot.order).toMatchObject({ status: "ACCEPTED", version: 2 });
+  expect(snapshot.payment.status).toBe("SIMULATED_SELLER_CONFIRMED");
+  expect(snapshot.items).toHaveLength(1);
 });

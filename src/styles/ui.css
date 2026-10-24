@@ -993,3 +993,97 @@ html[data-guide-active="true"] body {
     font-size: 17px;
   }
 }
+
+/* A single explicit action leads fulfillment; history stays compact until opened. */
+.fulfillment-bar {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60px;
+  font-size: 17px;
+  font-weight: 750;
+  white-space: normal;
+}
+.secondary-order-actions {
+  margin-top: 18px;
+}
+.secondary-order-actions > summary,
+.transaction-log > summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding-block: 10px;
+}
+.transaction-log > summary {
+  font-weight: 700;
+}
+.transaction-log > summary small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.transaction-log[open] > summary {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+.transaction-log .audit-list {
+  margin-bottom: 0;
+}
+.transaction-log .audit-list small {
+  color: var(--muted);
+}
+.action-notices {
+  position: fixed;
+  inset-inline-end: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  width: min(380px, calc(100vw - 32px));
+  z-index: 60;
+  display: grid;
+  gap: 10px;
+  pointer-events: none;
+}
+.action-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--accent);
+  border-inline-start-width: 5px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 6px 26px #0002;
+  pointer-events: auto;
+}
+.action-notice p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.action-notice .guide-close {
+  flex-shrink: 0;
+}
+.action-notice.is-leaving {
+  pointer-events: none;
+  animation: action-notice-exit 400ms ease-out forwards;
+}
+.action-notices[data-hosted] {
+  position: static;
+  width: auto;
+  margin-top: 12px;
+}
+@keyframes action-notice-exit {
+  to {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .action-notice.is-leaving {
+    animation: none;
+  }
+}
