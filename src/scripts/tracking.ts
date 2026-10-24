@@ -49,7 +49,7 @@ if (root) {
       "Você aceitou o frete. A loja ainda precisa confirmar o pedido antes da simulação de pagamento.",
     ACCEPTED: "Tudo certo com o pedido. A loja vai iniciar o preparo.",
     PREPARING: "Seu pedido está sendo preparado com cuidado.",
-    READY: "Pode vir buscar! O pedido está pronto para retirada na loja.",
+    READY: "O pedido está pronto. Aguarde a entrega pela loja.",
     OUT_FOR_DELIVERY:
       "O próprio lojista está cuidando da entrega. Este protótipo não mostra localização.",
     COMPLETED: "Atendimento concluído. Obrigado por testar a experiência!",
@@ -97,7 +97,13 @@ if (root) {
       stateCopy,
     );
     $("#tracking-instructions").replaceChildren(
-      el("p", nextSteps[order.status] ?? "", "small muted"),
+      el(
+        "p",
+        order.status === "READY" && order.fulfillment === "PICKUP"
+          ? "Pode vir buscar! O pedido está pronto para retirada na loja."
+          : (nextSteps[order.status] ?? ""),
+        "small muted",
+      ),
     );
     const quoteRoot = $("#tracking-quote");
     quoteRoot.replaceChildren();

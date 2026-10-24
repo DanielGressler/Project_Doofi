@@ -160,6 +160,96 @@ describe("Checkout íntegro", () => {
   });
 });
 describe("Jornadas e isolamento", () => {
+  it.each(["PICKUP", "FIXED", "QUOTE"])(
+    "%s: pronto e confirmação manual preservam total, isolamento e uma única conclusão",
+    async (fulfillment) => {
+      const order = await make({
+        fulfillment,
+        ...(fulfillment === "PICKUP"
+          ? {}
+          : {
+              address: "Rua Fictícia, 10",
+              neighborhood: "Centro",
+              postalCode: "00000000",
+            }),
+      });
+      await expect(
+        transition(env.DB, a, order.id, { version: 0, status: "READY" }),
+      ).rejects.toMatchObject({ status: 409 });
+      if (fulfillment === "QUOTE") {
+        await proposeQuote(env.DB, a, order.id, {
+          version: 0,
+          fee: 700,
+          estimate: "Até 30 minutos",
+          validMinutes: 30,
+        });
+        const offer = await publicStatus(env.DB, order.token);
+        await customerAction(env.DB, order.token, "accept-quote", {
+          nonce: offer.actionNonce,
+          version: offer.version,
+          quoteVersion: offer.quote!.version,
+        });
+      }
+      await transition(env.DB, a, order.id, {
+        version: (await row(order.id))!.version,
+        status: "ACCEPTED",
+      });
+      await expect(
+        transition(env.DB, a, order.id, {
+          version: (await row(order.id))!.version,
+          status: "COMPLETED",
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      await expect(
+        transition(env.DB, b, order.id, {
+          version: (await row(order.id))!.version,
+          status: "READY",
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      await transition(env.DB, a, order.id, {
+        version: (await row(order.id))!.version,
+        status: "READY",
+      });
+      const ready = await publicStatus(env.DB, order.token);
+      expect(ready.status).toBe("READY");
+      const results = await Promise.allSettled(
+        Array.from({ length: 2 }, () =>
+          transition(env.DB, a, order.id, {
+            version: ready.version,
+            status: "COMPLETED",
+          }),
+        ),
+      );
+      expect(
+        results.filter((result) => result.status === "fulfilled"),
+      ).toHaveLength(1);
+      const completed = await publicStatus(env.DB, order.token);
+      expect(completed.status).toBe("COMPLETED");
+      expect(completed.total).toBe(ready.total);
+      expect(completed.payment.status).toBe("SIMULATED_NOT_COLLECTED");
+      expect(
+        completed.events.filter((event) => event.status === "COMPLETED"),
+      ).toHaveLength(1);
+    },
+  );
+  it("falha no registro da confirmação não conclui nem incrementa a versão do pedido", async () => {
+    const order = await make();
+    await transition(env.DB, a, order.id, { version: 0, status: "ACCEPTED" });
+    await transition(env.DB, a, order.id, { version: 1, status: "READY" });
+    await env.DB.exec(
+      "CREATE TRIGGER reject_delivery_confirmation BEFORE INSERT ON audit_events WHEN NEW.action='ORDER_TRANSITION' AND json_extract(NEW.metadata,'$.status')='COMPLETED' BEGIN SELECT RAISE(ABORT,'test confirmation audit failure'); END;",
+    );
+    await expect(
+      transition(env.DB, a, order.id, { version: 2, status: "COMPLETED" }),
+    ).rejects.toThrow();
+    expect(await row(order.id)).toMatchObject({ status: "READY", version: 2 });
+    expect(
+      (await publicStatus(env.DB, order.token)).events.some(
+        (event) => event.status === "COMPLETED",
+      ),
+    ).toBe(false);
+  });
+
   it("J1: retirada percorre aceite, preparo, pronto e conclusão", async () => {
     const o = await make();
     for (const status of ["ACCEPTED", "PREPARING", "READY", "COMPLETED"])
@@ -172,7 +262,7 @@ describe("Jornadas e isolamento", () => {
       transition(env.DB, a, o.id, { version: 4, status: "ACCEPTED" }),
     ).rejects.toMatchObject({ status: 409 });
   });
-  it("J2: entrega fixa calcula frete e rejeita estado de retirada", async () => {
+  it("J2: entrega fixa calcula frete e mantém o fluxo legado de saída para entrega", async () => {
     const o = await make({
       fulfillment: "FIXED",
       address: "Rua Fictícia, 1",
@@ -182,9 +272,6 @@ describe("Jornadas e isolamento", () => {
     expect((await publicStatus(env.DB, o.token)).total).toBe(6200);
     await transition(env.DB, a, o.id, { version: 0, status: "ACCEPTED" });
     await transition(env.DB, a, o.id, { version: 1, status: "PREPARING" });
-    await expect(
-      transition(env.DB, a, o.id, { version: 2, status: "READY" }),
-    ).rejects.toMatchObject({ status: 409 });
     await transition(env.DB, a, o.id, {
       version: 2,
       status: "OUT_FOR_DELIVERY",
@@ -441,4 +528,70 @@ describe("Borda HTTP", () => {
       ).status;
     expect(status).toBe(429);
   });
+});
+
+it("histórico limitado não mistura empresas nem apaga eventos antigos", async () => {
+  const order = await make();
+  await env.DB.batch(
+    Array.from({ length: 150 }, (_, index) =>
+      env.DB.prepare(
+        "INSERT INTO audit_events (id,store_id,actor_id,action,entity_id,metadata,correlation_id,created_at) VALUES (?,?,?,?,?,?,?,?)",
+      ).bind(
+        `log-${index}`,
+        "store-a",
+        "user-a",
+        "TEST_NOTE",
+        order.id,
+        "{}",
+        "synthetic",
+        index + 1,
+      ),
+    ),
+  );
+  await env.DB.prepare(
+    "INSERT INTO audit_events (id,store_id,actor_id,action,entity_id,metadata,correlation_id,created_at) VALUES (?,?,?,?,?,?,?,?)",
+  )
+    .bind(
+      "foreign-log",
+      "store-b",
+      "user-b",
+      "PRIVATE_STORE_B",
+      order.id,
+      "{}",
+      "foreign",
+      9999999999,
+    )
+    .run();
+  const { login } = await import("../src/lib/auth");
+  const authenticated = await login(env.DB, new Request("http://localhost"), {
+    email: a.email,
+    password: "demo-doofi-P1!",
+  });
+  const response = await handleApi(
+    new Request(
+      `http://localhost/painel/api/v1/pedidos/${order.id}/auditoria`,
+      { headers: { cookie: authenticated.setCookie.split(";")[0] } },
+    ),
+    env.DB,
+    "local-demo",
+  );
+  expect(response.status).toBe(200);
+  const events = (await response.json()) as {
+    action: string;
+    created_at: number;
+  }[];
+  expect(events).toHaveLength(100);
+  expect(events.some((event) => event.action === "PRIVATE_STORE_B")).toBe(
+    false,
+  );
+  expect(events.map((event) => event.created_at)).toEqual(
+    events.map((event) => event.created_at).sort((left, right) => left - right),
+  );
+  expect(
+    await env.DB.prepare(
+      "SELECT COUNT(*) count FROM audit_events WHERE store_id='store-a' AND entity_id=?",
+    )
+      .bind(order.id)
+      .first(),
+  ).toEqual({ count: 151 });
 });

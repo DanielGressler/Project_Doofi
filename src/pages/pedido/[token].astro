@@ -42,11 +42,14 @@ try {
               <div id="tracking-state" class="tracking-state"></div>
               <div id="tracking-instructions"></div>
               <div id="tracking-quote"></div>
-              <ul
-                id="tracking-timeline"
-                class="timeline"
-                aria-label="Histórico do pedido"
-              ></ul>
+              <details class="transaction-log" id="tracking-history">
+                <summary>Histórico do pedido</summary>
+                <ul
+                  id="tracking-timeline"
+                  class="timeline"
+                  aria-label="Histórico do pedido"
+                ></ul>
+              </details>
             </section>
             <section class="card">
               <h2>Pagamento de demonstração</h2>

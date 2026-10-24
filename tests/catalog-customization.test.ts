@@ -11,8 +11,7 @@ import {
 import {
   createOrder,
   issueIntent,
-  orderDetails,
-  publicOrder,
+  ownedOrderSnapshot,
 } from "../src/lib/orders";
 import { normalizeImage, uploadImage } from "../src/lib/media";
 import { handleApi } from "../src/lib/api";
@@ -147,20 +146,14 @@ it("combo reúne dois itens, tem preço próprio e preserva composição no pedi
   expect(combo.components).toHaveLength(2);
   expect(combo.orderable).toBe(1);
   const order = await createOrder(env.DB, "casa-do-forno", await input(id));
-  const detail = await orderDetails(
-    env.DB,
-    await publicOrder(env.DB, order.token),
-  );
+  const detail = await ownedOrderSnapshot(env.DB, owner, order.id);
   expect(detail.items).toHaveLength(1);
   expect(detail.items[0].price).toBe(2900);
   expect(detail.items[0].title).toContain("Café coado especial");
   await env.DB.prepare(
     "UPDATE products SET title='Café novo',price=9999 WHERE id='a-cafe'",
   ).run();
-  const preserved = await orderDetails(
-    env.DB,
-    await publicOrder(env.DB, order.token),
-  );
+  const preserved = await ownedOrderSnapshot(env.DB, owner, order.id);
   expect(preserved.items[0]).toEqual(detail.items[0]);
 });
 it("indisponibilidade de componente bloqueia combo no catálogo e no checkout", async () => {

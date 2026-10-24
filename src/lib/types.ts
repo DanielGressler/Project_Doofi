@@ -118,7 +118,7 @@ export const statusLabels: Record<OrderStatus, string> = {
   QUOTE_ACCEPTED: "Frete aceito pelo comprador",
   ACCEPTED: "Pedido aceito",
   PREPARING: "Em preparo",
-  READY: "Pronto para retirar",
+  READY: "Pedido pronto",
   OUT_FOR_DELIVERY: "Saiu para entrega",
   COMPLETED: "Concluído",
   REJECTED: "Recusado",

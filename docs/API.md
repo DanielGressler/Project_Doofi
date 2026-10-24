@@ -41,7 +41,9 @@ O checkout retorna 409 com `code:CATALOG_CHANGED` se loja, produtos, componentes
 
 O aceite de frete revalida a expiração da cotação no próprio `UPDATE`. A versão usada em alterações é um inteiro seguro, separado do limite monetário de 100.000 centavos.
 
-`GET /pedidos/:token` inclui os últimos 100 eventos públicos, em ordem cronológica, lidos na mesma transação de status, pagamento e cotação. O histórico completo continua armazenado na auditoria restrita ao lojista. `/painel/pedidos` e `/painel/resumo` permanecem disponíveis; a interface usa `/painel/visao-geral` para obter lista e indicadores consistentes com uma única requisição.
+`GET /pedidos/:token` inclui os últimos 100 eventos públicos, em ordem cronológica, lidos na mesma transação de status, pagamento e cotação. O histórico completo continua armazenado no banco. `GET /painel/pedidos/:id/auditoria` retorna os 100 eventos mais recentes da própria loja em ordem cronológica; a interface consulta essa rota apenas ao expandir o histórico. `GET /painel/pedidos/:id` também lê pedido, itens, cotação e pagamento em um único lote transacional. `/painel/pedidos` e `/painel/resumo` permanecem disponíveis; a interface usa `/painel/visao-geral` para obter lista e indicadores consistentes com uma única requisição.
+
+O atendimento principal usa `ACCEPTED → READY → COMPLETED`, tanto para retirada quanto para entrega. A interface apresenta **Pedido pronto**, seguido de **Entregar pedido** e confirmação manual. `PREPARING` e `OUT_FOR_DELIVERY` continuam disponíveis nas transições anteriores; `OUT_FOR_DELIVERY` não é permitido para retirada. Cada alteração exige a versão atual, incrementa essa versão e grava auditoria atomicamente. Concluir não altera o estado de pagamento. Veja a [auditoria do fluxo](AUDITORIA_PREPARO_ENTREGA.md).
 
 429 informa `Retry-After` com os segundos restantes da janela. Uploads têm uma vaga de processamento por instância de execução: concorrência acima dela retorna 503, `code:IMAGE_CAPACITY` e `Retry-After:2`, antes de carregar outra imagem na memória. Esse limite protege a instância; não é um limite global de uploads de toda a implantação.
 
