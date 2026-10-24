@@ -2,6 +2,23 @@ import { test, expect, type Page } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 
 const origin = "http://localhost:4321";
+async function receive(page: Page, token: string) {
+  const current = await (
+    await page.request.get(`/api/v1/pedidos/${token}`)
+  ).json();
+  expect(
+    (
+      await page.request.post(`/api/v1/pedidos/${token}/confirm-receipt`, {
+        headers: { origin },
+        data: { version: current.version, nonce: current.actionNonce },
+      })
+    ).ok(),
+  ).toBe(true);
+  await page.locator("#reload-detail").click();
+  await expect(page.locator("#customer-receipt-state")).toContainText(
+    "Recebimento confirmado pelo cliente",
+  );
+}
 async function scenario(page: Page, fulfillment = "PICKUP", accepted = false) {
   const registered = await page.request.post("/painel/api/v1/register", {
     headers: { origin },
@@ -85,6 +102,182 @@ async function scenario(page: Page, fulfillment = "PICKUP", accepted = false) {
   return { ...order, headers, path: `/painel/pedidos/${order.id}` };
 }
 
+test("Meus pedidos confirma recebimento, recupera resposta perdida e libera somente a própria compra", async ({
+  page,
+  browser,
+}) => {
+  const order = await scenario(page, "FIXED", true);
+  const customer = await browser.newContext({
+    viewport: { width: 320, height: 900 },
+  });
+  const otherCustomer = await browser.newContext();
+  try {
+    const client = await customer.newPage(),
+      stranger = await otherCustomer.newPage();
+    await client.goto(`/pedido/${order.token}`);
+    await client
+      .getByRole("link", { name: "Meus pedidos", exact: true })
+      .first()
+      .click();
+    await expect(client.locator(".customer-order-card")).toHaveCount(1);
+    await expect(
+      client.getByRole("button", {
+        name: "Confirmar recebimento",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await stranger.goto("/meus-pedidos");
+    await expect(stranger.locator("#customer-orders-empty")).toBeVisible();
+    await expect(stranger.locator(".customer-order-card")).toHaveCount(0);
+    await page.goto(order.path);
+    await page
+      .getByRole("button", { name: "Pedido pronto", exact: true })
+      .click();
+    await expect(page.locator("#order-status")).toHaveText("Pedido pronto");
+    await expect(
+      page.getByRole("button", { name: "Entregar pedido", exact: true }),
+    ).toBeDisabled();
+    const forbidden = await page.request.post(
+      `/painel/api/v1/pedidos/${order.id}/transicoes`,
+      {
+        headers: order.headers,
+        data: { version: 2, status: "COMPLETED", received_at: 1 },
+      },
+    );
+    expect(forbidden.status()).toBe(409);
+    expect((await forbidden.json()).code).toBe("RECEIPT_REQUIRED");
+    await client
+      .getByRole("button", { name: "Atualizar meus pedidos", exact: true })
+      .click();
+    await expect(
+      client.getByRole("button", {
+        name: "Confirmar recebimento",
+        exact: true,
+      }),
+    ).toBeVisible();
+    let writes = 0;
+    await client.route(
+      `**/api/v1/pedidos/${order.token}/confirm-receipt`,
+      async (route) => {
+        writes++;
+        expect((await route.fetch()).status()).toBe(200);
+        await route.abort("failed");
+      },
+    );
+    await client
+      .getByRole("button", { name: "Confirmar recebimento", exact: true })
+      .click();
+    await expect(client.locator(".receipt-confirmation")).toContainText(
+      "Recebimento confirmado",
+    );
+    await expect(
+      client.locator('.receipt-confirmation [role="status"]'),
+    ).toBeFocused();
+    expect(writes).toBe(1);
+    await expect(
+      client.getByRole("button", {
+        name: "Confirmar recebimento",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    expect(
+      await client.evaluate(() => localStorage.getItem("doofi.customerOrders")),
+    ).toBeNull();
+    const references = await client.evaluate(() =>
+      JSON.parse(sessionStorage.getItem("doofi.customerOrders")!),
+    );
+    expect(Object.keys(references[0]).sort()).toEqual(["savedAt", "token"]);
+    expect(
+      (await customer.cookies()).some((cookie) =>
+        /doofi_panel/.test(cookie.name),
+      ),
+    ).toBe(false);
+    expect(
+      await client.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    expect(
+      (
+        await new AxeBuilder({ page: client })
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+          .analyze()
+      ).violations,
+    ).toEqual([]);
+    await client.evaluate(() => scrollTo(0, 0));
+    await client.screenshot({
+      path: "docs/evidencias/cliente-recebimento-mobile.png",
+      fullPage: true,
+      animations: "disabled",
+    });
+    await page.locator("#reload-detail").click();
+    await expect(page.locator("#customer-receipt-state")).toContainText(
+      "Recebimento confirmado pelo cliente",
+    );
+    await page
+      .getByRole("button", { name: "Entregar pedido", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Confirmar entrega", exact: true })
+      .click();
+    await expect(page.locator("#order-status")).toHaveText("Concluído");
+    await client
+      .getByRole("button", { name: "Atualizar meus pedidos", exact: true })
+      .click();
+    await expect(client.locator(".badge")).toHaveText("Concluído");
+  } finally {
+    await customer.close();
+    await otherCustomer.close();
+  }
+});
+
+test("cliente com tela antiga recupera confirmação já registrada e conclusão sem misturar versões", async ({
+  page,
+  browser,
+}) => {
+  const order = await scenario(page, "PICKUP", true);
+  await page.goto(order.path);
+  await page
+    .getByRole("button", { name: "Pedido pronto", exact: true })
+    .click();
+  await expect(page.locator("#order-status")).toHaveText("Pedido pronto");
+  const context = await browser.newContext();
+  try {
+    const client = await context.newPage();
+    await client.goto(`/pedido/${order.token}`);
+    await client
+      .getByRole("link", { name: "Meus pedidos", exact: true })
+      .first()
+      .click();
+    const button = client.getByRole("button", {
+      name: "Confirmar recebimento",
+      exact: true,
+    });
+    await expect(button).toBeVisible();
+    await button.focus();
+    await receive(page, order.token);
+    expect(
+      (
+        await page.request.post(
+          `/painel/api/v1/pedidos/${order.id}/transicoes`,
+          {
+            headers: order.headers,
+            data: { version: 3, status: "COMPLETED" },
+          },
+        )
+      ).ok(),
+    ).toBe(true);
+    await button.click();
+    await expect(client.locator(".badge")).toHaveText("Concluído");
+    await expect(client.locator(".receipt-confirmation")).toContainText(
+      "Pedido concluído",
+    );
+    await expect(button).toHaveCount(0);
+  } finally {
+    await context.close();
+  }
+});
+
 for (const fulfillment of ["PICKUP", "FIXED"]) {
   test(`${fulfillment}: barra, confirmação manual e histórico recolhido sem recarregar`, async ({
     page,
@@ -143,6 +336,21 @@ for (const fulfillment of ["PICKUP", "FIXED"]) {
     await expect(tracking.locator("#tracking-history")).not.toHaveAttribute(
       "open",
     );
+    await expect(page.locator("#fulfill-order")).toBeDisabled();
+    await tracking
+      .getByRole("link", { name: "Meus pedidos", exact: true })
+      .first()
+      .click();
+    await tracking
+      .getByRole("button", { name: "Confirmar recebimento", exact: true })
+      .click();
+    await expect(tracking.locator(".receipt-confirmation")).toContainText(
+      "Recebimento confirmado",
+    );
+    await page.locator("#reload-detail").click();
+    await expect(page.locator("#customer-receipt-state")).toContainText(
+      "Recebimento confirmado pelo cliente",
+    );
     await page
       .getByRole("button", { name: "Entregar pedido", exact: true })
       .click();
@@ -179,7 +387,7 @@ for (const fulfillment of ["PICKUP", "FIXED"]) {
     await page.locator("#transaction-log > summary").click();
     await expect(page.locator("#audit-list")).toContainText("Pedido pronto");
     await expect(page.locator("#audit-list")).toContainText("Concluído");
-    await expect(page.locator("#audit-count")).toHaveText("4 evento(s)");
+    await expect(page.locator("#audit-count")).toHaveText("5 evento(s)");
     expect(audits).toBe(1);
     expect(navigations).toBe(0);
     expect(
@@ -234,6 +442,7 @@ test("atualização por outro atendente e retorno da aba invalidam confirmação
     .getByRole("button", { name: "Pedido pronto", exact: true })
     .click();
   await expect(page.locator("#order-status")).toHaveText("Pedido pronto");
+  await receive(page, order.token);
   await page
     .getByRole("button", { name: "Entregar pedido", exact: true })
     .click();
@@ -242,7 +451,7 @@ test("atualização por outro atendente e retorno da aba invalidam confirmação
       await page.request.post(`/painel/api/v1/pedidos/${order.id}/transicoes`, {
         headers: order.headers,
         data: {
-          version: 2,
+          version: 3,
           status: "CANCELLED",
           reason: "Cancelamento de teste por outro atendente",
         },
@@ -311,7 +520,7 @@ test("leitura atrasada e clique repetido não liberam ações antes de conferir 
     await expect(page.locator("#order-status")).toHaveText("Pedido pronto");
     await expect(
       page.getByRole("button", { name: "Entregar pedido", exact: true }),
-    ).toBeEnabled();
+    ).toBeDisabled();
     expect(writes).toBe(1);
   } finally {
     releaseOld();
@@ -347,6 +556,7 @@ test("resposta perdida após gravar é conferida sem repetir preparo ou entrega"
   await expect(page.locator("#feedback")).toBeEmpty();
   await page.clock.fastForward(6500);
   expect(writes).toBe(1);
+  await receive(page, order.token);
   await page
     .getByRole("button", { name: "Entregar pedido", exact: true })
     .click();

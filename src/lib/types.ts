@@ -91,6 +91,8 @@ export interface Order {
   quote_version: number;
   created_at: number;
   updated_at: number;
+  // Derived from the immutable receipt event; never accepted from form fields.
+  received_at?: number | null;
 }
 export interface Quote {
   id: string;

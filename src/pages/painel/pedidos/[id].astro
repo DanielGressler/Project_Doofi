@@ -27,12 +27,13 @@ try {
 }
 const order = detail?.order;
 const allowed = order ? allowedOrderTransitions(order) : [];
-const primary = order ? fulfillmentAction(order.status) : null;
+const primary = order ? fulfillmentAction(order) : null;
 const initial =
   order && detail
     ? {
         status: order.status,
         version: order.version,
+        received_at: order.received_at ?? null,
         fulfillment: order.fulfillment,
         subtotal: order.subtotal,
         delivery_fee: order.delivery_fee,
@@ -145,6 +146,7 @@ const initial =
             aria-labelledby="fulfillment-title"
           >
             <h2 id="fulfillment-title">Atendimento</h2>
+            <p id="customer-receipt-state" class="small" role="status"></p>
             <p id="fulfillment-help" class="small muted"></p>
             <button
               type="button"

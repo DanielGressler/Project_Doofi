@@ -124,7 +124,7 @@ export async function handleApi(
       }
     }
     match = path.match(
-      /^pedidos\/([a-f0-9]{64})(?:\/(accept-quote|reject-quote|declare-payment))?$/,
+      /^pedidos\/([a-f0-9]{64})(?:\/(accept-quote|reject-quote|declare-payment|confirm-receipt))?$/,
     );
     if (match) {
       await rateLimit(db, request, "tracking", 240);

@@ -47,5 +47,6 @@ export function panelOrder(order: Order) {
     quote_version: order.quote_version,
     created_at: order.created_at,
     updated_at: order.updated_at,
+    received_at: order.received_at ?? null,
   };
 }

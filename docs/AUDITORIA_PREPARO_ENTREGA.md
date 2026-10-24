@@ -2,6 +2,8 @@
 
 Atualização de 24/10/2026. Funcionalidade de demonstração, com dados fictícios e confirmação manual. Não registra entrega física, localização de entregador ou pagamento real.
 
+Complemento posterior: a conclusão agora exige a [confirmação de recebimento pelo cliente](RECEBIMENTO_CLIENTE.md), inclusive no servidor. O roteiro abaixo descreve a entrega manual original; siga também o novo passo do cliente antes de concluir.
+
 ## Uso
 
 1. Aceite o pedido na fila ou nos detalhes. Em frete a combinar, o comprador precisa aceitar a proposta antes do aceite da loja.
