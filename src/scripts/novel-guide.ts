@@ -153,7 +153,10 @@ document.querySelectorAll<HTMLElement>("[data-novel-guide]").forEach((root) => {
       )
         root
           .querySelector<HTMLElement>(".novel-dialogue")!
-          .animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180 });
+          .animate(
+            [{ transform: "translateY(3px)" }, { transform: "translateY(0)" }],
+            { duration: 180 },
+          );
     }
     if (root.id === "catalog-guide") {
       const url = new URL(location.href);
