@@ -1,3 +1,49 @@
 ---
-return Astro.redirect("/loja/casa-do-forno");
+import Layout from "../layouts/Layout.astro";
+import ProductArt from "../components/ProductArt.astro";
+import Icon from "../components/Icon.astro";
 ---
+
+<Layout title="Escolha sua experiência" entry>
+  <div class="wrap entry-page">
+    <div class="eyebrow">BEM-VINDO AO DOOFI</div>
+    <h1>
+      Qual é a sua
+      <br />
+      <em>experiência de hoje?</em>
+    </h1>
+    <p>Escolha um caminho. A gente acompanha você pelo protótipo.</p>
+    <div class="role-grid">
+      <a href="/lojas" class="role-card role-client">
+        <div class="role-art">
+          <ProductArt kind="croissant" />
+        </div>
+        <span class="eyebrow">QUERO DESCOBRIR E PEDIR</span>
+        <h2>
+          Sou cliente <Icon name="arrow" />
+        </h2>
+        <p>
+          Conheça as lojas, monte seu carrinho e teste um pedido sem criar
+          conta.
+        </p>
+        <span class="role-action">Escolher uma loja →</span>
+      </a>
+      <a href="/painel/entrar" class="role-card role-merchant">
+        <div class="role-art">
+          <Icon name="store" size={112} />
+        </div>
+        <span class="eyebrow">QUERO CRIAR E ATENDER</span>
+        <h2>
+          Sou lojista <Icon name="arrow" />
+        </h2>
+        <p>
+          Entre no painel ou crie uma loja de teste com um guia passo a passo.
+        </p>
+        <span class="role-action">Entrar na área do lojista →</span>
+      </a>
+    </div>
+    <p class="small muted">
+      Uma demonstração com dados fictícios. Nenhuma compra ou pagamento real.
+    </p>
+  </div>
+</Layout>

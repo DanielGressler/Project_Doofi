@@ -1,6 +1,12 @@
 import { AppError, body, originCheck, rateLimit } from "./core";
-import { getSession, login, logout, requireSession } from "./auth";
-import { getProducts, getStore, saveProduct, saveStore } from "./catalog";
+import { getSession, login, logout, register, requireSession } from "./auth";
+import {
+  getProducts,
+  getStore,
+  saveProduct,
+  saveStore,
+  finishStoreGuide,
+} from "./catalog";
 import {
   confirmSimulatedPayment,
   createOrder,
@@ -20,6 +26,8 @@ import {
 } from "./dashboard";
 import { demoAllowed, type DemoAccessConfig } from "./access";
 import { publicProduct, publicStore } from "./public-data";
+import { apiResource } from "./api-path";
+import { panelOrder, panelProduct, panelStore } from "./panel-data";
 
 const json = (
   value: unknown,
@@ -46,9 +54,7 @@ export async function handleApi(
         403,
         "Endereço ou acesso não autorizado para esta demonstração.",
       );
-    const path = new URL(request.url).pathname
-      .replace(/^\/api\/v1\//, "")
-      .replace(/\/$/, "");
+    const path = apiResource(new URL(request.url).pathname);
     const method = request.method;
     const mutates = !["GET", "HEAD"].includes(method);
     if (mutates) originCheck(request);
@@ -76,7 +82,18 @@ export async function handleApi(
     if (path === "login" && method === "POST") {
       await rateLimit(db, request, "login", 10);
       const result = await login(db, request, await body(request));
-      return json({ authenticated: true, csrfToken: result.csrfToken }, 200, {
+      return json(
+        { authenticated: true, csrfToken: result.csrfToken, next: result.next },
+        200,
+        {
+          "Set-Cookie": result.setCookie,
+        },
+      );
+    }
+    if (path === "register" && method === "POST") {
+      await rateLimit(db, request, "register", 5);
+      const result = await register(db, request, await body(request));
+      return json({ authenticated: true, next: result.next }, 201, {
         "Set-Cookie": result.setCookie,
       });
     }
@@ -138,16 +155,22 @@ export async function handleApi(
       if (path === "painel/loja") {
         if (method === "GET")
           return json(
-            await db
-              .prepare("SELECT * FROM stores WHERE id=?")
-              .bind(session.store_id)
-              .first<Store>(),
+            panelStore(
+              (await db
+                .prepare("SELECT * FROM stores WHERE id=?")
+                .bind(session.store_id)
+                .first<Store>())!,
+            ),
           );
         if (method === "PATCH")
           return json(await saveStore(db, session, await body(request)));
       }
+      if (path === "painel/guia/concluir" && method === "POST")
+        return json(await finishStoreGuide(db, session, await body(request)));
       if (path === "painel/catalogo" && method === "GET")
-        return json(await getProducts(db, session.store_id));
+        return json(
+          (await getProducts(db, session.store_id)).map(panelProduct),
+        );
       if (path === "painel/produtos" && method === "POST")
         return json(await saveProduct(db, session, await body(request)), 201);
       match = path.match(/^painel\/produtos\/([^/]+)$/);
@@ -170,13 +193,10 @@ export async function handleApi(
         const [, id, action] = match;
         if (!action && method === "GET") {
           const order = await ownedOrder(db, session, id);
-          const {
-            public_token_hash: _token,
-            request_hash: _request,
-            intent_hash: _intent,
-            ...safe
-          } = order;
-          return json({ ...safe, ...(await orderDetails(db, order)) });
+          return json({
+            ...panelOrder(order),
+            ...(await orderDetails(db, order)),
+          });
         }
         if (action === "auditoria" && method === "GET") {
           await ownedOrder(db, session, id);

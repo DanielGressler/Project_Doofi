@@ -1,0 +1,52 @@
+---
+import ProductArt from "./ProductArt.astro";
+import { money } from "../lib/types";
+import type { PublicProduct } from "../lib/public-data";
+interface Props {
+  product: PublicProduct;
+  open: boolean;
+}
+const { product: p, open } = Astro.props;
+---
+
+<article
+  class:list={["product-card", { unavailable: !p.orderable }]}
+  data-product-category={p.category}
+>
+  <div class="product-picture">
+    {p.image_id ? (
+      <img
+        class="product-photo"
+        src={`/media/${p.image_id}`}
+        alt={p.title}
+        width="960"
+        height="720"
+        loading="lazy"
+      />
+    ) : (
+      <ProductArt kind={p.image} />
+    )}
+    {!p.orderable && <span class="unavailable-label">Indisponível</span>}
+  </div>
+  <div class="product-content">
+    <span class="product-category">{p.category}</span>
+    <h3>{p.title}</h3>
+    <p>{p.description}</p>
+    {p.is_combo === 1 && (
+      <p class="combo-composition">
+        Inclui: {p.components.map((c) => c.title).join(" + ")}
+      </p>
+    )}
+    <div class="product-bottom">
+      <strong>{money(p.price)}</strong>
+      <button
+        class="add-button"
+        data-add={p.id}
+        aria-label={`Adicionar ${p.title}`}
+        disabled={!p.orderable || !open}
+      >
+        +
+      </button>
+    </div>
+  </div>
+</article>

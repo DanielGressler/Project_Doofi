@@ -23,7 +23,9 @@
     "deploy:staging": "node scripts/staging.mjs deploy",
     "db:migrate:staging": "node scripts/staging.mjs migrate",
     "db:seed:staging": "node scripts/staging.mjs seed",
-    "cloudflare:login": "node scripts/run.mjs wrangler login"
+    "cloudflare:login": "node scripts/run.mjs wrangler login",
+    "db:reset": "node scripts/reset-demo.mjs",
+    "db:reset:staging": "node scripts/staging.mjs reset"
   },
   "dependencies": {
     "@astrojs/cloudflare": "14.4.1",
@@ -46,5 +48,9 @@
     "typescript": "5.9.3",
     "vitest": "4.1.12",
     "wrangler": "4.151.2"
+  },
+  "overrides": {
+    "undici@^7.0.0": "7.30.1",
+    "zod@4.6.5": "4.6.7"
   }
 }

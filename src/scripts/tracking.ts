@@ -70,7 +70,7 @@ if (root) {
           nonce: order.actionNonce,
           quoteVersion: order.quote?.version,
         });
-        await refresh(true);
+        await refresh();
         feedback("Ação registrada na demonstração.");
       });
     return button;
@@ -182,7 +182,7 @@ if (root) {
           : order.store.contact,
       ),
     );
-    const back = el("a", "Voltar ao cardápio", "inline-link small");
+    const back = el("a", "Voltar ao cardápio", "inline-link tracking-back");
     back.href = `/loja/${order.store.slug}`;
     info.append(back);
     const payment = $("#tracking-payment");
@@ -235,7 +235,10 @@ if (root) {
       );
   }
   async function load() {
+    const explicit = requestedRefresh;
+    requestedRefresh = false;
     const next = await api<PublicOrder>(`pedidos/${token}`);
+    if (!automaticUpdates && !explicit) return;
     if (next.version < order.version) return;
     if (
       next.version !== order.version ||
@@ -246,14 +249,34 @@ if (root) {
     }
     feedback("Dados atualizados.");
   }
+  let automaticUpdates = true;
+  let requestedRefresh = false;
   const canRefresh = () =>
-    !document.hidden && !root.contains(document.activeElement);
+    automaticUpdates &&
+    !document.hidden &&
+    !root.contains(document.activeElement);
   const poller = createPoller(load, {
     enabled: canRefresh,
     onError: (error) => feedback((error as Error).message, true),
   });
-  const refresh = (fresh = false) => poller.refresh(fresh);
-  $("#refresh-tracking").onclick = () => void refresh(true);
+  const refresh = () => {
+    requestedRefresh = true;
+    return poller.refresh(true);
+  };
+  $("#refresh-tracking").onclick = () => void refresh();
+  $("#pause-tracking-updates").onclick = (event) => {
+    automaticUpdates = !automaticUpdates;
+    const button = event.currentTarget as HTMLButtonElement;
+    button.setAttribute("aria-pressed", String(!automaticUpdates));
+    button.textContent = automaticUpdates
+      ? "Pausar atualização automática"
+      : "Retomar atualização automática";
+    if (automaticUpdates) void refresh();
+    else
+      feedback(
+        "Atualização automática pausada. Use Atualizar pedido para consultar sem reativá-la.",
+      );
+  };
   $("#copy-link").onclick = async () => {
     try {
       await navigator.clipboard.writeText(location.href);
@@ -284,6 +307,6 @@ if (root) {
   } catch {}
   render();
   document.addEventListener("visibilitychange", () => {
-    if (canRefresh()) void refresh();
+    if (canRefresh()) void poller.refresh();
   });
 }

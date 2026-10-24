@@ -1,4 +1,5 @@
-import { textField } from "./core";
+import { AppError, textField } from "./core";
+import { syntheticError } from "./synthetic-data";
 
 export interface CustomerDetails {
   id: string;
@@ -19,4 +20,14 @@ export function deliveryIdentity(input: Record<string, unknown>) {
     phone: textField(input.phone, "Telefone fictício", 3, 40),
     email: textField(input.email, "E-mail fictício", 3, 120),
   };
+}
+export function assertSyntheticDelivery(input: {
+  name: unknown;
+  phone: unknown;
+  email: unknown;
+}) {
+  for (const field of ["name", "phone", "email"] as const) {
+    const message = syntheticError(field, input[field]);
+    if (message) throw new AppError(422, message, "SYNTHETIC_DATA_REQUIRED");
+  }
 }

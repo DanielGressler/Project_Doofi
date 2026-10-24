@@ -97,7 +97,7 @@ it("painel entrega lista e resumo em uma requisição e duas chamadas D1", async
     orders: unknown[];
   };
   expect(result.summary.total_orders).toBe(result.orders.length);
-  expect(stats).toEqual({ calls: 2, statements: 4 });
+  expect(stats).toEqual({ calls: 2, statements: 5 });
 });
 
 it("catálogo público faz duas chamadas D1 com três consultas", async () => {

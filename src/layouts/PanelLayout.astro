@@ -10,7 +10,12 @@ const session = Astro.locals.session!;
 ---
 
 <Layout title={title} panel>
-  <div class="wrap panel-layout" id="panel-app" data-csrf={session.csrf_token}>
+  <div
+    class="wrap panel-layout"
+    id="panel-app"
+    data-csrf={session.csrf_token}
+    data-store-id={session.store_id}
+  >
     <aside class="panel-nav" aria-label="Menu do lojista">
       <div class="panel-store">
         <strong>{session.store_title}</strong>
@@ -44,6 +49,14 @@ const session = Astro.locals.session!;
         <Icon name="arrow" size={16} />
         Ver loja pública
       </a>
+      <details class="session-profile">
+        <summary>Meu acesso</summary>
+        <p>{session.email}</p>
+        <small>
+          {session.role === "owner" ? "Proprietário" : "Atendente"} ·{" "}
+          {session.store_title}
+        </small>
+      </details>
     </aside>
     <div class="panel-content">
       <slot />

@@ -6,7 +6,7 @@ import { login } from "../src/lib/auth";
 import { applyD1Migrations, reset } from "cloudflare:test";
 import type { D1PreparedStatement } from "@cloudflare/workers-types";
 import seed from "../db/seed.sql?raw";
-import { legacyOrder } from "./fixtures/legacy-order";
+import { legacyOrder, legacySession } from "./fixtures/legacy-order";
 
 type Identity = { cookie: string; csrf: string };
 const shops = [
@@ -91,7 +91,7 @@ async function order(
     items: [{ productId: shop.product, quantity: 1 }],
     fulfillment: "FIXED",
     payment: "PIX_SIMULATED",
-    name: `Cliente privado ${shop.id}`,
+    name: `Cliente Teste privado ${shop.id}`,
     phone: "00000000",
     email: `privado-${shop.id}@exemplo.invalid`,
     address: `Endereço privado ${shop.id}`,
@@ -516,7 +516,7 @@ it("checkout não mistura produtos, intentos ou componentes entre empresas", asy
     payment: "PIX_SIMULATED",
     name: "Teste fictício",
     phone: "00000000",
-    email: "teste.invalid",
+    email: "teste@exemplo.invalid",
     consent: true,
     syntheticData: true,
   };
@@ -580,7 +580,7 @@ it("cada token e nonce autoriza apenas seu pedido e não divulga dados privados"
       ])
         expect(data).not.toHaveProperty(key);
       const serialized = JSON.stringify(data);
-      expect(serialized).not.toContain("Cliente privado");
+      expect(serialized).not.toContain("Cliente Teste privado");
       expect(serialized).not.toContain("Endereço privado");
       expect(serialized).not.toContain("Observação privada");
       expect(serialized).not.toContain("privado-store-");
@@ -625,7 +625,7 @@ it("migração preserva pedidos e exige nova sessão para eliminar escopo legado
       .filter(Boolean)
       .map((s) => env.DB.prepare(s.replace(/;$/, ""))),
   );
-  const identity = await auth("forno");
+  const identity = await legacySession(env.DB);
   const existing = await legacyOrder(env.DB);
   await applyD1Migrations(env.DB, migrations);
   expect((await call("painel/catalogo", undefined, identity)).status).toBe(401);

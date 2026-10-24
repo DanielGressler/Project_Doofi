@@ -17,6 +17,7 @@ export interface Store {
   font: "editorial" | "simple" | "classic";
   layout: "cozy" | "compact" | "showcase";
   banner_id: string | null;
+  setup_complete: number;
 }
 export type StoreAppearance = Pick<Store, "palette" | "font" | "layout">;
 export interface Product {
@@ -48,8 +49,10 @@ export interface Session {
   email: string;
 }
 export interface AuthenticatedSession extends Session {
+  session_expires_at: number;
   store_title: string;
   store_slug: string;
+  store_setup_complete: number;
 }
 export type OrderStatus =
   | "PENDING"
