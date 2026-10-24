@@ -1,3 +1,4 @@
+import type { Order } from "./types";
 import type { D1Result } from "@cloudflare/workers-types";
 
 export interface OrderSummary {
@@ -61,6 +62,19 @@ export async function getDashboard(db: D1Database, storeId: string) {
   const results = await db.batch([
     ...summaryStatements(db, storeId),
     recentOrdersStatement(db, storeId),
+    db
+      .prepare(
+        `SELECT id,protocol,status,version,created_at FROM orders WHERE store_id=?
+      AND status IN ('PENDING','QUOTE_PENDING','QUOTE_ACCEPTED') ORDER BY created_at,rowid LIMIT 50`,
+      )
+      .bind(storeId),
   ]);
-  return { summary: readSummary(results), orders: results[2].results };
+  return {
+    summary: readSummary(results),
+    orders: results[2].results,
+    queue: results[3].results as Pick<
+      Order,
+      "id" | "protocol" | "status" | "version" | "created_at"
+    >[],
+  };
 }

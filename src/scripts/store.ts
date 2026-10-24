@@ -7,7 +7,7 @@ const products = JSON.parse(root.dataset.products!) as PublicProduct[];
 let cart = readCart(slug);
 function render() {
   const rows = $("#cart-items");
-  rows.replaceChildren();
+  rows?.replaceChildren();
   let count = 0;
   let subtotal = 0;
   for (const [id, quantity] of Object.entries(cart)) {
@@ -18,12 +18,25 @@ function render() {
     }
     count += quantity;
     subtotal += quantity * product.price;
+    if (!rows) continue;
     const row = el("div", "", "cart-item");
     const line = el("div", "", "cart-item-top");
     line.append(
       el("strong", product.title),
       el("span", money(product.price * quantity)),
     );
+    if (!product.orderable)
+      row.append(
+        el(
+          "p",
+          "Indisponível. Remova este item para continuar.",
+          "error small",
+        ),
+      );
+    if (product.is_combo)
+      row.append(
+        el("small", product.components.map((c) => c.title).join(" + ")),
+      );
     const control = el("div", "", "quantity-control");
     const minus = el("button", "−");
     minus.type = "button";
@@ -39,14 +52,24 @@ function render() {
     plus.onclick = () => change(id, 1);
     control.append(minus, el("span", String(quantity)), plus);
     row.append(line, control);
-    rows.append(row);
+    rows?.append(row);
   }
   document
     .querySelectorAll("[data-cart-count]")
     .forEach((n) => (n.textContent = String(count)));
-  $("#cart-empty").hidden = count > 0;
-  $("#cart-totals").hidden = count === 0;
+  if ($("#cart-empty")) $("#cart-empty").hidden = count > 0;
+  if ($("#cart-totals")) $("#cart-totals").hidden = count === 0;
   $("#cart-subtotal").textContent = money(subtotal);
+  const next = $<HTMLAnchorElement>("#cart-next");
+  if (next) {
+    const blocked =
+      Object.keys(cart).some(
+        (id) => !products.find((p) => p.id === id)?.orderable,
+      ) || root.dataset.open === "false";
+    next.setAttribute("aria-disabled", String(blocked));
+    if (blocked) next.removeAttribute("href");
+    else next.href = `/loja/${slug}/checkout`;
+  }
 }
 function change(id: string, delta: number) {
   if (delta > 0 && !products.find((p) => p.id === id)?.orderable) {
@@ -97,6 +120,16 @@ document.querySelectorAll<HTMLButtonElement>("[data-category]").forEach(
               button.dataset.category !== "all" &&
               card.dataset.productCategory !== button.dataset.category),
         );
+      document
+        .querySelectorAll<HTMLElement>("[data-menu-section]")
+        .forEach((section) => {
+          section.hidden = !section.querySelector(
+            "[data-product-category]:not([hidden])",
+          );
+        });
+      $("#filter-empty").hidden = !!document.querySelector(
+        "[data-product-category]:not([hidden])",
+      );
     }),
 );
 window.addEventListener("storage", (event) => {

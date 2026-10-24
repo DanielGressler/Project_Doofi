@@ -1,3 +1,4 @@
+import { syntheticError } from "./synthetic-data";
 import {
   AppError,
   audit,
@@ -261,6 +262,9 @@ export async function saveStore(
   const title = textField(input.title, "Nome da loja", 2, 80);
   const description = textField(input.description, "Descrição", 2, 300);
   const contact = textField(input.contact, "Contato fictício", 4, 80);
+  const contactError = syntheticError("contact", contact);
+  if (contactError)
+    throw new AppError(422, contactError, "SYNTHETIC_DATA_REQUIRED");
   const hours = textField(input.hours, "Horários", 3, 120);
   const pickup = textField(input.pickup_address, "Endereço fictício", 4, 160);
   const neighborhoods = textField(input.neighborhoods, "Bairros", 2, 300);
@@ -294,6 +298,12 @@ export async function saveStore(
       422,
       "Escolha uma paleta, uma fonte e um layout disponíveis.",
     );
+  const preset = input.banner_preset ?? current.theme;
+  if (
+    typeof preset !== "string" ||
+    !["bakery", "terracotta", "green", "sweets"].includes(preset)
+  )
+    throw new AppError(422, "Escolha um banner ilustrado disponível.");
   const bannerId =
     input.banner_id === undefined ? current.banner_id : input.banner_id;
   await validateMedia(db, session.store_id, bannerId, "banner");
@@ -302,7 +312,7 @@ export async function saveStore(
   const result = await db.batch([
     db
       .prepare(
-        "UPDATE stores SET title=?,description=?,contact=?,hours=?,pickup_address=?,neighborhoods=?,delivery_fee=?,is_open=?,has_own_delivery=?,palette=?,font=?,banner_id=?,layout=?,version=version+1 WHERE id=? AND version=?",
+        "UPDATE stores SET title=?,description=?,contact=?,hours=?,pickup_address=?,neighborhoods=?,delivery_fee=?,is_open=?,has_own_delivery=?,palette=?,font=?,banner_id=?,layout=?,theme=?,setup_complete=CASE WHEN ?=1 THEN 1 ELSE setup_complete END,version=version+1 WHERE id=? AND version=?",
       )
       .bind(
         title,
@@ -318,6 +328,8 @@ export async function saveStore(
         font,
         bannerId,
         layout,
+        preset,
+        Number(input.finishSetup === true),
         session.store_id,
         version,
       ),
@@ -351,4 +363,63 @@ export async function validateMedia(
       .first())
   )
     throw new AppError(422, "Imagem inválida ou pertencente a outra loja.");
+}
+
+export async function finishStoreGuide(
+  db: D1Database,
+  session: Session,
+  input: Record<string, unknown>,
+) {
+  if (session.role !== "owner")
+    throw new AppError(
+      403,
+      "Somente o proprietário pode concluir a configuração.",
+    );
+  const version = versionField(input.version);
+  if (input.skip !== undefined && typeof input.skip !== "boolean")
+    throw new AppError(422, "Informe se deseja pular o tutorial.");
+  const skip = input.skip === true;
+  const results = await db.batch([
+    db
+      .prepare(
+        "UPDATE stores SET setup_complete=1,version=version+1 WHERE id=? AND version=? AND setup_complete=0 AND (version>0 OR ?=1)",
+      )
+      .bind(session.store_id, version, Number(skip)),
+    conditionalAudit(
+      db,
+      session,
+      skip ? "GUIDE_SKIPPED" : "GUIDE_COMPLETED",
+      session.store_id,
+      { version },
+    ),
+  ]);
+  if (!results[0].meta.changes) {
+    const store = await db
+      .prepare("SELECT setup_complete,version FROM stores WHERE id=?")
+      .bind(session.store_id)
+      .first<Pick<Store, "setup_complete" | "version">>();
+    if (!store?.setup_complete)
+      throw new AppError(
+        409,
+        "Salve a personalização da loja e atualize a página antes de concluir o guia.",
+      );
+    if (skip && store.version !== version) {
+      // Recover a lost skip response only if this exact decision produced the current version.
+      const replay =
+        store.version === version + 1 &&
+        (await db
+          .prepare(
+            "SELECT id FROM audit_events WHERE store_id=? AND actor_id=? AND action='GUIDE_SKIPPED' AND json_extract(metadata,'$.version')=? LIMIT 1",
+          )
+          .bind(session.store_id, session.user_id, version)
+          .first());
+      if (!replay)
+        throw new AppError(
+          409,
+          "A loja foi alterada. Atualize a página antes de pular o tutorial.",
+        );
+    }
+    return { completed: true, version: store.version };
+  }
+  return { completed: true, version: version + 1 };
 }

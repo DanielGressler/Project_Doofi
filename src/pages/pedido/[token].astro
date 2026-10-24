@@ -17,6 +17,7 @@ try {
 <Layout
   title={order ? `Acompanhar ${order.protocol}` : "Pedido não encontrado"}
   appearance={order?.store ?? undefined}
+  slug={order?.store.slug}
 >
   <div class="wrap page-wrap">
     {order ? (
@@ -90,6 +91,14 @@ try {
           <button class="button button-quiet" id="refresh-tracking">
             <Icon name="refresh" size={17} />
             Atualizar pedido
+          </button>
+          <button
+            type="button"
+            class="button button-quiet"
+            id="pause-tracking-updates"
+            aria-pressed="false"
+          >
+            Pausar atualização automática
           </button>
           <p class="small muted">
             Acompanhamento por status. Sem localização em tempo real.

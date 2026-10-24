@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
+import { pauseQueue, openEditor } from "./ui-helpers";
+import { test, expect, type Page } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdir } from "node:fs/promises";
 
@@ -9,6 +10,7 @@ async function login(page: Page, shop = "forno") {
     .fill(`${shop}@demo.doofi.test`);
   await page.getByRole("button", { name: "Entrar no painel" }).click();
   await expect(page).toHaveURL(/\/painel\/pedidos$/);
+  await pauseQueue(page);
 }
 async function checkout(
   page: Page,
@@ -29,6 +31,9 @@ async function checkout(
     })
     .click();
   await page.getByRole("link", { name: "Continuar pedido" }).click();
+  await page
+    .getByRole("link", { name: "Avançar para dados e entrega" })
+    .click();
   if (fulfillment !== "PICKUP")
     await page
       .locator(`input[name="fulfillment"][value="${fulfillment}"]`)
@@ -40,7 +45,7 @@ async function checkout(
       ),
     ).toBe(true);
     const audit = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+      .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
       .analyze();
     expect(
       audit.violations.map((v) => ({
@@ -63,6 +68,7 @@ async function checkout(
 }
 async function openOrder(page: Page, protocol: string) {
   await page.goto("/painel/pedidos");
+  await pauseQueue(page);
   await page.getByRole("link").filter({ hasText: protocol }).click();
 }
 async function transition(page: Page, label: string, status: string) {
@@ -199,14 +205,24 @@ test("catálogo, fechamento e configuração são gerenciáveis pelo lojista", a
   const product = page
     .locator(".product-form")
     .filter({ has: page.locator('input[value="Café coado especial"]') });
+  await openEditor(page, "Café coado especial");
   await product.getByLabel("Preço (R$)").fill("9.00");
-  await product.getByRole("button", { name: "Salvar produto" }).click();
+  await openEditor(page, "Café coado especial");
+  await Promise.all([
+    page.waitForEvent("framenavigated"),
+    product.getByRole("button", { name: "Salvar produto" }).click(),
+  ]);
   await expect(page.locator('input[name="price"][value="9.00"]')).toHaveCount(
     1,
   );
   // Restore the fixture price so this suite can be repeated without destroying existing orders.
+  await openEditor(page, "Café coado especial");
   await product.getByLabel("Preço (R$)").fill("8.00");
-  await product.getByRole("button", { name: "Salvar produto" }).click();
+  await openEditor(page, "Café coado especial");
+  await Promise.all([
+    page.waitForEvent("framenavigated"),
+    product.getByRole("button", { name: "Salvar produto" }).click(),
+  ]);
   await expect(page.locator('input[name="price"][value="8.00"]')).toHaveCount(
     1,
   );
@@ -249,7 +265,7 @@ test("desktop e celular 320px · teclado, contraste e sem rolagem lateral", asyn
       ),
     ).toBe(true);
     const results = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+      .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
       .analyze();
     expect(
       results.violations.map((v) => ({
@@ -288,7 +304,7 @@ test("loja B no celular 320px · checkout, rastreio e painel acessíveis", async
     ),
   ).toBe(true);
   let results = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(
     results.violations.map((v) => ({
@@ -302,7 +318,7 @@ test("loja B no celular 320px · checkout, rastreio e painel acessíveis", async
   const panel = await merchant.newPage();
   await panel.goto("/painel/entrar");
   results = await new AxeBuilder({ page: panel })
-    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(
     results.violations.map((v) => ({
@@ -317,7 +333,7 @@ test("loja B no celular 320px · checkout, rastreio e painel acessíveis", async
     ),
   ).toBe(true);
   results = await new AxeBuilder({ page: panel })
-    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(
     results.violations.map((v) => ({
@@ -338,6 +354,9 @@ test("resposta perdida e refresh recuperam o mesmo pedido sem duplicar", async (
     })
     .click();
   await page.getByRole("link", { name: "Continuar pedido" }).click();
+  await page
+    .getByRole("link", { name: "Avançar para dados e entrega" })
+    .click();
   await page.locator('input[name="consent"]').check();
   let token = "";
   let count = 0;

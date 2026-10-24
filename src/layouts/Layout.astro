@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import "../styles/store-theme.css";
+import "../styles/ui.css";
 import Icon from "../components/Icon.astro";
 import { palettes, appearanceStyles } from "../lib/appearance";
 import type { StoreAppearance } from "../lib/types";
@@ -9,14 +10,16 @@ interface Props {
   panel?: boolean;
   slug?: string;
   appearance?: StoreAppearance;
+  entry?: boolean;
 }
-const { title, panel = false, slug, appearance } = Astro.props;
+const { title, panel = false, slug, appearance, entry = false } = Astro.props;
 const colors = palettes[appearance?.palette ?? "terracotta"];
 ---
 
 <!doctype html>
 <html
   lang="pt-BR"
+  data-doofi-epoch={Astro.locals.browserEpoch}
   class:list={{ "store-theme": !!appearance }}
   data-layout={appearance?.layout ?? undefined}
   style={appearance ? appearanceStyles(appearance) : undefined}
@@ -43,9 +46,11 @@ const colors = palettes[appearance?.palette ?? "terracotta"];
           · Dados fictícios. Nenhum pagamento real.
         </span>
       </span>
-      <a href="/demo">
-        Explorar demonstração <span aria-hidden="true">↗</span>
-      </a>
+      {!entry && (
+        <a href="/">
+          Trocar experiência <span aria-hidden="true">↗</span>
+        </a>
+      )}
     </div>
     <header class="site-header wrap">
       <a class="brand" href="/" aria-label="Doofi, início">
@@ -58,34 +63,39 @@ const colors = palettes[appearance?.palette ?? "terracotta"];
         doofi<span class="brand-period">.</span>
       </a>
       <span class="header-caption">O bom do bairro, aqui.</span>
-      <nav aria-label="Navegação principal">
-        {panel ? (
-          <a class="nav-link" href="/demo">
-            <Icon name="store" />
-            Lojas de teste
-          </a>
-        ) : (
-          <a class="nav-link" href="/painel/entrar">
-            <Icon name="user" />
-            <span>Área do lojista</span>
-          </a>
-        )}
-        {slug && (
-          <a class="button button-quiet header-cart" href="#carrinho">
-            <Icon name="bag" />
-            <span class="cart-label">Seu pedido</span>
-            <span class="cart-count" data-cart-count>
-              0
-            </span>
-          </a>
-        )}
-        {panel && (
-          <button class="button button-quiet" id="logout">
-            <Icon name="logout" />
-            Sair
-          </button>
-        )}
-      </nav>
+      {!entry && (
+        <nav aria-label="Navegação principal">
+          {panel ? (
+            <a class="nav-link" href="/lojas">
+              <Icon name="store" />
+              Lojas cadastradas
+            </a>
+          ) : (
+            <a class="nav-link" href="/painel/entrar">
+              <Icon name="user" />
+              <span>Área do lojista</span>
+            </a>
+          )}
+          {slug && (
+            <a
+              class="button button-quiet header-cart"
+              href={`/loja/${slug}/carrinho`}
+            >
+              <Icon name="bag" />
+              <span class="cart-label">Seu pedido</span>
+              <span class="cart-count" data-cart-count>
+                0
+              </span>
+            </a>
+          )}
+          {panel && (
+            <button class="button button-quiet" id="logout">
+              <Icon name="logout" />
+              Sair
+            </button>
+          )}
+        </nav>
+      )}
     </header>
     <main id="conteudo">
       <slot />
@@ -94,7 +104,24 @@ const colors = palettes[appearance?.palette ?? "terracotta"];
       <a class="brand brand-small" href="/">
         doofi.
       </a>
-      <p>Feito para conectar quem faz com quem está perto.</p>
+      <nav class="footer-links" aria-label="Atalhos do rodapé">
+        {panel ? (
+          <>
+            <a href="/painel/pedidos">Meus pedidos</a>
+            <a href="/painel/catalogo">Gerenciar catálogo</a>
+            <a href="/painel/loja">Configurar loja</a>
+            <a href="/painel/loja?tutorial=1">Guia da loja</a>
+          </>
+        ) : slug ? (
+          <>
+            <a href={`/loja/${slug}`}>Loja</a>
+            <a href={`/loja/${slug}/carrinho`}>Carrinho</a>
+            <a href={`/loja/${slug}/checkout`}>Dados de envio</a>
+          </>
+        ) : (
+          <a href="/">Escolher experiência</a>
+        )}
+      </nav>
       <div>
         <a href="/politicas">Sobre esta demonstração</a>
         <span> P1 · 2026</span>
@@ -105,5 +132,8 @@ const colors = palettes[appearance?.palette ?? "terracotta"];
         Ative o JavaScript para montar o carrinho e testar esta demonstração.
       </p>
     </noscript>
+    <script>
+      import "../scripts/demo-storage";
+    </script>
   </body>
 </html>

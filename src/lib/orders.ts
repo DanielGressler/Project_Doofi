@@ -13,7 +13,7 @@ import {
   versionField,
 } from "./core";
 import { getStore, getProducts } from "./catalog";
-import { deliveryIdentity } from "./customer-data";
+import { assertSyntheticDelivery, deliveryIdentity } from "./customer-data";
 import type {
   Order,
   OrderItem,
@@ -63,13 +63,15 @@ function normalize(input: Record<string, unknown>) {
       return { productId, quantity: integer(i.quantity, "Quantidade", 1, 10) };
     })
     .sort((a, b) => a.productId.localeCompare(b.productId));
-  if (!["PICKUP", "FIXED", "QUOTE"].includes(String(input.fulfillment)))
+  if (
+    typeof input.fulfillment !== "string" ||
+    !["PICKUP", "FIXED", "QUOTE"].includes(input.fulfillment)
+  )
     throw new AppError(422, "Escolha a modalidade de entrega.");
   const fulfillment = input.fulfillment as Order["fulfillment"];
   if (
-    !["PIX_SIMULATED", "ON_FULFILLMENT_SIMULATED"].includes(
-      String(input.payment),
-    )
+    typeof input.payment !== "string" ||
+    !["PIX_SIMULATED", "ON_FULFILLMENT_SIMULATED"].includes(input.payment)
   )
     throw new AppError(422, "Escolha uma forma de pagamento demonstrativa.");
   if (input.consent !== true || input.syntheticData !== true)
@@ -158,6 +160,11 @@ export async function createOrder(
       "Informe nome, telefone e e-mail fictícios para os dados de envio.",
       "DELIVERY_DETAILS_REQUIRED",
     );
+  assertSyntheticDelivery({
+    name: normalized.name,
+    phone: normalized.phone,
+    email: normalized.email,
+  });
   if (!store.is_open)
     throw new AppError(422, "A loja está fechada para novos pedidos.");
   if (normalized.fulfillment === "FIXED" && !store.has_own_delivery)
@@ -379,7 +386,10 @@ export async function ownedOrder(db: D1Database, session: Session, id: string) {
   }
   return order;
 }
-export async function orderDetails(db: D1Database, order: Order) {
+export async function orderDetails(
+  db: D1Database,
+  order: Pick<Order, "id" | "store_id" | "quote_version">,
+) {
   const [items, quotes, payments] = await db.batch([
     db
       .prepare(
@@ -388,7 +398,7 @@ export async function orderDetails(db: D1Database, order: Order) {
       .bind(order.id, order.store_id),
     db
       .prepare(
-        "SELECT * FROM delivery_quotes WHERE order_id=? AND store_id=? AND version=?",
+        "SELECT id,order_id,store_id,version,fee,estimate,expires_at,accepted_at FROM delivery_quotes WHERE order_id=? AND store_id=? AND version=?",
       )
       .bind(order.id, order.store_id, order.quote_version),
     db
@@ -403,7 +413,10 @@ export async function orderDetails(db: D1Database, order: Order) {
     payment: payments.results[0] as Payment,
   };
 }
-async function paymentForOrder(db: D1Database, order: Order) {
+async function paymentForOrder(
+  db: D1Database,
+  order: Pick<Order, "id" | "store_id">,
+) {
   const payment = await db
     .prepare(
       "SELECT method,status FROM payment_records WHERE order_id=? AND store_id=?",
@@ -423,10 +436,22 @@ export async function publicOrder(db: D1Database, token: string) {
     throw new AppError(404, "Pedido não encontrado ou link expirado.");
   const order = await db
     .prepare(
-      "SELECT * FROM orders WHERE public_token_hash=? AND token_revoked=0 AND token_expires_at>?",
+      "SELECT id,store_id,status,quote_version,version,fulfillment,subtotal,total FROM orders WHERE public_token_hash=? AND token_revoked=0 AND token_expires_at>?",
     )
     .bind(await hash(token), now())
-    .first<Order>();
+    .first<
+      Pick<
+        Order,
+        | "id"
+        | "store_id"
+        | "status"
+        | "quote_version"
+        | "version"
+        | "fulfillment"
+        | "subtotal"
+        | "total"
+      >
+    >();
   if (!order)
     throw new AppError(404, "Pedido não encontrado ou link expirado.");
   return order;
@@ -442,7 +467,9 @@ export async function publicStatus(db: D1Database, token: string) {
   const [orders, items, quotes, payments, stores, auditRows, keys] =
     await db.batch([
       db
-        .prepare(`SELECT o.* FROM orders o WHERE ${visibleOrder}`)
+        .prepare(
+          `SELECT o.protocol,o.status,o.fulfillment,o.subtotal,o.delivery_fee,o.total,o.version,o.created_at FROM orders o WHERE ${visibleOrder}`,
+        )
         .bind(tokenHash, timestamp),
       db
         .prepare(
@@ -452,7 +479,7 @@ export async function publicStatus(db: D1Database, token: string) {
         .bind(tokenHash, timestamp),
       db
         .prepare(
-          `SELECT q.* FROM delivery_quotes q JOIN orders o
+          `SELECT q.version,q.fee,q.estimate,q.expires_at,q.accepted_at FROM delivery_quotes q JOIN orders o
       ON o.id=q.order_id AND o.store_id=q.store_id AND o.quote_version=q.version WHERE ${visibleOrder}`,
         )
         .bind(tokenHash, timestamp),
@@ -478,10 +505,24 @@ export async function publicStatus(db: D1Database, token: string) {
         .bind(tokenHash, timestamp),
       db.prepare("SELECT value FROM app_keys WHERE name='tracking_hmac'"),
     ]);
-  const order = orders.results[0] as Order | undefined;
+  const order = orders.results[0] as
+    | Pick<
+        Order,
+        | "protocol"
+        | "status"
+        | "fulfillment"
+        | "subtotal"
+        | "delivery_fee"
+        | "total"
+        | "version"
+        | "created_at"
+      >
+    | undefined;
   if (!order)
     throw new AppError(404, "Pedido não encontrado ou link expirado.");
-  const quote = quotes.results[0] as Quote | undefined;
+  const quote = quotes.results[0] as
+    | Pick<Quote, "version" | "fee" | "estimate" | "expires_at" | "accepted_at">
+    | undefined;
   const events = (
     auditRows.results as {
       action: string;
@@ -670,7 +711,7 @@ export async function customerAction(
   if (["accept-quote", "reject-quote"].includes(action)) {
     const quote = await db
       .prepare(
-        "SELECT * FROM delivery_quotes WHERE order_id=? AND store_id=? AND version=?",
+        "SELECT id,order_id,store_id,version,fee,estimate,expires_at,accepted_at FROM delivery_quotes WHERE order_id=? AND store_id=? AND version=?",
       )
       .bind(order.id, order.store_id, order.quote_version)
       .first<Quote>();

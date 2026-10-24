@@ -64,7 +64,12 @@ writeFileSync(
 );
 
 let args;
+let runner = path.join(root, "scripts", "run.mjs");
 switch (command) {
+  case "reset":
+    runner = path.join(root, "scripts", "reset-demo.mjs");
+    args = ["--remote", "--config", configPath, ...extra];
+    break;
   case "build":
     args = ["astro", "build", ...extra];
     break;
@@ -117,17 +122,13 @@ switch (command) {
     break;
   }
   default:
-    throw new Error("Use build, migrate, seed ou deploy.");
+    throw new Error("Use build, migrate, seed, reset ou deploy.");
 }
-const child = spawn(
-  process.execPath,
-  [path.join(root, "scripts", "run.mjs"), ...args],
-  {
-    cwd: root,
-    stdio: "inherit",
-    env: { ...process.env, DOOFI_WRANGLER_CONFIG: adapterConfigPath },
-  },
-);
+const child = spawn(process.execPath, [runner, ...args], {
+  cwd: root,
+  stdio: "inherit",
+  env: { ...process.env, DOOFI_WRANGLER_CONFIG: adapterConfigPath },
+});
 for (const signal of ["SIGINT", "SIGTERM"])
   process.on(signal, () => child.kill(signal));
 child.on("error", (error) => {

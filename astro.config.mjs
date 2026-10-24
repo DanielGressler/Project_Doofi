@@ -9,4 +9,6 @@ export default defineConfig({
   }),
   session: false,
   devToolbar: { enabled: false },
+  // Keep processed scripts external: the prototype's CSP does not allow inline JS.
+  vite: { build: { assetsInlineLimit: 0 } },
 });

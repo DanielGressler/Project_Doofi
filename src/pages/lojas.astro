@@ -1,0 +1,84 @@
+---
+import { env } from "cloudflare:workers";
+import Layout from "../layouts/Layout.astro";
+import ProductArt from "../components/ProductArt.astro";
+import { money } from "../lib/types";
+import { registeredStores } from "../lib/directory";
+const page = Math.min(
+  10000,
+  Math.max(1, Math.floor(Number(Astro.url.searchParams.get("pagina")) || 1)),
+);
+const stores = await registeredStores(env.DB, page);
+---
+
+<Layout title="Lojas cadastradas">
+  <div class="wrap page-wrap">
+    <div class="page-heading">
+      <div>
+        <div class="eyebrow">SUA PRÓXIMA DESCOBERTA</div>
+        <h1>
+          Lojas do bairro<span class="accent">.</span>
+        </h1>
+        <p>Escolha uma loja para explorar o cardápio e testar seu pedido.</p>
+      </div>
+    </div>
+    <div class="directory-grid">
+      {stores.slice(0, 24).map((store) => (
+        <article class="card directory-card">
+          <div class="directory-art">
+            {store.banner_id ? (
+              <img
+                src={`/media/${store.banner_id}`}
+                alt={`Banner de ${store.title}`}
+                width="1600"
+                height="600"
+                loading="lazy"
+              />
+            ) : (
+              <ProductArt
+                kind={
+                  store.theme === "green"
+                    ? "bowl"
+                    : store.theme === "sweets"
+                      ? "croissant"
+                      : "bread"
+                }
+              />
+            )}
+          </div>
+          <span class:list={["badge", { closed: !store.is_open }]}>
+            {store.is_open
+              ? "Recebendo pedidos de teste"
+              : "Fechada para pedidos"}
+          </span>
+          <h2>{store.title}</h2>
+          <p>{store.description}</p>
+          <p class="small muted">
+            Retirada gratuita
+            {store.has_own_delivery
+              ? ` · Entrega fixa ${money(store.delivery_fee)}`
+              : " · Entrega a combinar"}
+          </p>
+          <a class="button button-primary" href={`/loja/${store.slug}`}>
+            Conhecer {store.title} →
+          </a>
+        </article>
+      ))}
+    </div>
+    {!stores.length && (
+      <p class="notice">Nenhuma loja configurada nesta página.</p>
+    )}
+    <nav class="directory-pages" aria-label="Páginas de lojas">
+      {page > 1 && (
+        <a class="button button-quiet" href={`/lojas?pagina=${page - 1}`}>
+          ← Anterior
+        </a>
+      )}
+      {stores.length > 24 && (
+        <a class="button button-quiet" href={`/lojas?pagina=${page + 1}`}>
+          Próxima →
+        </a>
+      )}
+    </nav>
+  </div>
+</Layout>

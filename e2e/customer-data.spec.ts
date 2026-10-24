@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { pauseQueue } from "./ui-helpers";
+import { expect, test } from "./fixtures";
 
 test("cliente informa dados de envio após o carrinho e a loja os consulta com o login atual", async ({
   page,
@@ -12,10 +13,13 @@ test("cliente informa dados de envio após o carrinho e a loja os consulta com o
     })
     .click();
   await page.getByRole("link", { name: "Continuar pedido" }).click();
+  await page
+    .getByRole("link", { name: "Avançar para dados e entrega" })
+    .click();
   await expect(page.locator('input[type="password"]')).toHaveCount(0);
   await page
     .getByRole("textbox", { name: /^Nome fictício/ })
-    .fill("Pessoa de Entrega");
+    .fill("Pessoa Teste de Entrega");
   await page
     .getByRole("textbox", { name: /^Telefone fictício/ })
     .fill("(00) 00000-5678");
@@ -46,9 +50,10 @@ test("cliente informa dados de envio após o carrinho e a loja os consulta com o
       .fill("forno@demo.doofi.test");
     await merchant.getByRole("button", { name: "Entrar no painel" }).click();
     await expect(merchant).toHaveURL(/painel\/pedidos$/);
+    await pauseQueue(merchant);
     await merchant.getByRole("link").filter({ hasText: protocol }).click();
     await expect(merchant.locator("#order-detail")).toContainText(
-      "Pessoa de Entrega",
+      "Pessoa Teste de Entrega",
     );
     await expect(merchant.locator("#order-detail")).toContainText(
       "(00) 00000-5678",

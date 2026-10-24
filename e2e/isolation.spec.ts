@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("carrinhos por empresa, clientes em contextos separados e descarte dos dados do envio", async ({
   page,
@@ -23,12 +23,13 @@ test("carrinhos por empresa, clientes em contextos separados e descarte dos dado
       exact: true,
     })
     .click();
-  await page.goto("/loja/verde-mesa");
+  await page.goto("/loja/verde-mesa/carrinho");
   await expect(page.locator("#cart-empty")).toBeVisible();
+  await page.goto("/loja/verde-mesa");
   await page
     .getByRole("button", { name: "Adicionar Bowl de verão", exact: true })
     .click();
-  await page.goto(`/loja/${slug}`);
+  await page.goto(`/loja/${slug}/carrinho`);
   await expect(page.locator("#cart-items")).toContainText(
     "Pão de fermentação natural",
   );
@@ -36,9 +37,12 @@ test("carrinhos por empresa, clientes em contextos separados e descarte dos dado
   const clientB = await browser.newContext();
   try {
     const other = await clientB.newPage();
-    await other.goto(`/loja/${slug}`);
+    await other.goto(`/loja/${slug}/carrinho`);
     await expect(other.locator("#cart-empty")).toBeVisible();
-    await page.getByRole("link", { name: "Continuar pedido" }).click();
+    await page
+      .getByRole("link", { name: "Avançar para dados e entrega" })
+      .click();
+    await expect(page.locator("#submit-order")).toBeEnabled();
     expect(
       await page.evaluate(() =>
         localStorage.getItem("doofi.lastOrder.casa-do-forno"),
@@ -46,7 +50,7 @@ test("carrinhos por empresa, clientes em contextos separados e descarte dos dado
     ).toBeNull();
     await page
       .getByRole("textbox", { name: /^Nome fictício/ })
-      .fill("Cliente isolado A");
+      .fill("Cliente Teste isolado A");
     await page
       .getByRole("textbox", { name: /^E-mail fictício/ })
       .fill("privado-a@exemplo.invalid");
@@ -67,10 +71,10 @@ test("carrinhos por empresa, clientes em contextos separados e descarte dos dado
       ),
     ).toEqual([]);
     expect(await page.content()).not.toContain("privado-a@exemplo.invalid");
-    expect(await page.content()).not.toContain("Cliente isolado A");
+    expect(await page.content()).not.toContain("Cliente Teste isolado A");
     await other.reload();
     await expect(other.locator("#cart-empty")).toBeVisible();
-    await page.goto("/loja/verde-mesa");
+    await page.goto("/loja/verde-mesa/carrinho");
     await expect(page.locator("#cart-items")).toContainText("Bowl de verão");
   } finally {
     await clientB.close();
@@ -114,7 +118,7 @@ test("HTML privado fica restrito à empresa autenticada e não permite cache", a
           items: [{ productId: "a-pao", quantity: 1 }],
           fulfillment: "FIXED",
           payment: "PIX_SIMULATED",
-          name: "Cliente secreto A",
+          name: "Cliente Teste secreto A",
           phone: "00000000",
           email: "privado-a@exemplo.invalid",
           address: "Rua privativa A, 123",

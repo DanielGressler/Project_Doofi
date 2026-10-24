@@ -94,17 +94,17 @@ Até que os três campos estejam corretos, o sistema bloqueia o acesso. O backen
 
 ## 5. Validar e compartilhar
 
-Abra uma janela anônima e acesse `https://SEU_HOST/demo`:
+Abra uma janela anônima e acesse `https://SEU_HOST/`:
 
 1. Confirme que o Cloudflare pede autenticação.
-2. Entre com um e-mail autorizado e confira a demonstração.
+2. Entre com um e-mail autorizado e confira as opções **Sou cliente** e **Sou lojista**. Cliente abre a lista de lojas; lojista abre o login do painel.
 3. Teste também um e-mail fora da lista: ele deve ser negado.
 4. Faça um pedido fictício e acompanhe pelo painel de demonstração.
 5. Teste os uploads no Worker para verificar os limites de CPU e armazenamento do plano escolhido; os testes locais não medem esses limites remotos.
 
-As contas demonstrativas continuam sendo `forno@demo.doofi.test` e `verde@demo.doofi.test`, com a senha pública documentada no README. Cada pessoa autorizada pode experimentar essas contas; isso não implementa cadastro individual de empresários ou autenticação comercial de produção.
+As contas demonstrativas continuam sendo `forno@demo.doofi.test` e `verde@demo.doofi.test`, com a senha pública documentada no README. Cada pessoa autorizada pode experimentar essas contas ou usar **Criar minha loja**, no login, para criar uma empresa fictícia isolada e seguir o assistente de personalização. Esse cadastro continua restrito ao ambiente de demonstração protegido; não é autenticação comercial de produção. Aplique também `0007_onboarding_fila.sql` antes de publicar a atualização de interface.
 
-Os convidados precisam autenticar no Access também ao abrir links de acompanhamento. O e-mail usado no controle de acesso é real; os dados inseridos no checkout devem ser fictícios.
+Os convidados precisam autenticar no Access também ao abrir links de acompanhamento. O e-mail usado no controle de acesso é real; essa autorização externa permanece igual. Dentro do protótipo, cadastro/login da loja e checkout aceitam somente domínios reservados de teste, como `@exemplo.invalid` e `@demo.doofi.test`. Telefones usam DDD 00 e nomes de destinatários precisam de uma marca de teste. A revisão visual não adiciona migrações além das sete já existentes.
 
 ## Comandos locais preservados
 
@@ -123,3 +123,5 @@ Os testes automatizados exercitam o bloqueio de tokens ausentes, falsos, expirad
 Referência: [Cloudflare Access para Workers](https://developers.cloudflare.com/workers/configuration/cloudflare-access/).
 
 Verificações desta alteração: 44 testes de backend e 11 cenários de navegador aprovados; check e lint sem erros; build local e build de homologação aprovados; dry-run da publicação aprovado. O Worker compilado de homologação retornou 403 sem autenticação para páginas, API e mídia. A preparação também recusa o Database ID fictício e impede publicar como homologação um build local. Nenhuma dessas verificações carregou dados ou publicou recursos na conta Cloudflare do usuário.
+
+Para apagar todos os dados de teste e restaurar a base inicial, use o comando de manutenção descrito em [RESET_PROTOTIPO.md](RESET_PROTOTIPO.md). Ele cria backup e não é disparado por deploys. A revisão das decisões de interface está em [REVISAO_IUX.md](REVISAO_IUX.md).

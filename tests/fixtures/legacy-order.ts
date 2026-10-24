@@ -1,4 +1,4 @@
-import { audit, hash, hmac, now } from "../../src/lib/core";
+import { audit, hash, hmac, now, randomToken } from "../../src/lib/core";
 import { issueIntent } from "../../src/lib/orders";
 
 // A real pre-0006 record, including the previous canonical idempotency payload.
@@ -67,4 +67,17 @@ export async function legacyOrder(
     token,
     input: { ...canonical, intent, consent: true, syntheticData: true },
   };
+}
+
+// Issue a session using the schema available before onboarding existed.
+export async function legacySession(db: D1Database) {
+  const token = randomToken(),
+    csrf = randomToken();
+  await db
+    .prepare(
+      "INSERT INTO sessions (token_hash,user_id,csrf_token,expires_at) VALUES (?,'user-a',?,?)",
+    )
+    .bind(await hash(token), csrf, now() + 28800)
+    .run();
+  return { cookie: `doofi_session=${token}`, csrf };
 }

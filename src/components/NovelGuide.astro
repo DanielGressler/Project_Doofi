@@ -1,0 +1,102 @@
+---
+interface Props {
+  id: string;
+  scenes: { title: string; text: string }[];
+  controls?: boolean;
+  chapter?: number;
+  skip?: boolean;
+}
+const { id, scenes, controls = false, chapter = 0, skip = false } = Astro.props;
+const initial = Math.min(scenes.length - 1, Math.max(0, chapter));
+---
+
+<section
+  class="novel-guide"
+  id={id}
+  data-novel-guide
+  data-scenes={JSON.stringify(scenes)}
+  data-chapter={initial}
+  aria-label="Guia interativo da loja"
+>
+  <div class="guide-tools">
+    <button
+      type="button"
+      class="button button-quiet"
+      data-guide-motion
+      aria-pressed="false"
+    >
+      Pausar animações
+    </button>
+    {skip && (
+      <button type="button" class="button button-quiet" data-guide-skip>
+        Pular tutorial
+      </button>
+    )}
+  </div>
+  <div class="novel-stage">
+    <div class="novel-character" aria-hidden="true">
+      <svg viewBox="0 0 160 160" width="120" height="120">
+        <path
+          d="M80 7c22 0 24 34 24 49 15 0 49 2 49 24s-34 24-49 24c0 15-2 49-24 49s-24-34-24-49C41 104 7 102 7 80s34-24 49-24C56 41 58 7 80 7Z"
+          fill="currentColor"
+        />
+        <g class="novel-eyes" fill="#fffdf8">
+          <ellipse cx="64" cy="74" rx="6" ry="9" />
+          <ellipse cx="96" cy="74" rx="6" ry="9" />
+        </g>
+        <path
+          d="M68 94q12 14 24 0"
+          stroke="#fffdf8"
+          stroke-width="5"
+          fill="none"
+          stroke-linecap="round"
+        />
+      </svg>
+    </div>
+    <div class="novel-dialogue">
+      <span class="novel-speaker">DOFI · SEU GUIA</span>
+      <p class="small muted" data-guide-chapter>
+        Capítulo {initial + 1} de {scenes.length}
+      </p>
+      <h2 data-guide-title tabindex="-1">
+        {scenes[initial].title}
+      </h2>
+      <p data-guide-text aria-live="polite">
+        {scenes[initial].text}
+      </p>
+    </div>
+  </div>
+  <slot />
+  <p data-guide-feedback class="feedback" role="alert"></p>
+  {controls && (
+    <div class="novel-controls">
+      <button
+        type="button"
+        class="button button-quiet"
+        data-guide-back
+        disabled={initial === 0}
+      >
+        ← Voltar
+      </button>
+      <button
+        type="button"
+        class="button button-primary"
+        data-guide-next
+        hidden={initial === scenes.length - 1}
+      >
+        Continuar →
+      </button>
+      <button
+        type="button"
+        class="button button-primary"
+        data-guide-finish
+        hidden={initial !== scenes.length - 1}
+      >
+        Concluir tutorial ✓
+      </button>
+    </div>
+  )}
+</section>
+<script>
+  import "../scripts/novel-guide";
+</script>

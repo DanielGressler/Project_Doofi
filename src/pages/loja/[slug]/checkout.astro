@@ -14,10 +14,10 @@ try {
 const products = (await getProducts(env.DB, store.id)).map(publicProduct);
 ---
 
-<Layout title="Finalizar pedido de teste" appearance={store}>
+<Layout title="Dados e entrega" slug={store.slug} appearance={store}>
   <div
     id="checkout-app"
-    class="wrap page-wrap"
+    class="wrap page-wrap checkout-compact"
     data-slug={store.slug}
     data-products={JSON.stringify(products)}
     data-store={JSON.stringify({
@@ -25,48 +25,74 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
       is_open: store.is_open,
     })}
   >
-    <a class="back-link" href={`/loja/${store.slug}`}>
-      ← Voltar ao cardápio
+    <a class="back-link" href={`/loja/${store.slug}/carrinho`}>
+      ← Revisar carrinho
     </a>
+    <ol class="checkout-steps" aria-label="Etapas do pedido">
+      <li>
+        <a href={`/loja/${store.slug}/carrinho`}>1. Carrinho</a>
+      </li>
+      <li aria-current="step">2. Dados e entrega</li>
+      <li>3. Acompanhamento</li>
+    </ol>
     <div class="page-heading">
       <div>
-        <div class="eyebrow">{store.title} · CHECKOUT DEMONSTRATIVO</div>
         <h1>
-          Quase na sua mesa<span class="accent">.</span>
+          Dados para envio<span class="accent">.</span>
         </h1>
-        <p>Um pedido simples, direto com a loja.</p>
+        <p>{store.title} · Sem conta ou senha. Use dados fictícios.</p>
       </div>
     </div>
     <div id="checkout-empty" class="empty-state" hidden>
       <h2>Seu carrinho está vazio</h2>
-      <p>Escolha algo no cardápio para começar.</p>
       <a href={`/loja/${store.slug}`} class="button button-primary">
         Explorar cardápio
       </a>
     </div>
-    <form id="checkout-form" class="checkout-layout">
-      <div>
+    <aside
+      id="checkout-recovery"
+      class="notice"
+      hidden
+      aria-label="Estado do envio"
+    >
+      <p id="recovery-message"></p>
+      <a id="recovery-link" class="inline-link" hidden>
+        Abrir acompanhamento do pedido →
+      </a>
+      <button id="reset-checkout" type="button" class="button button-quiet">
+        Descartar dados e iniciar outro pedido
+      </button>
+      <p class="small">
+        Se uma resposta se perdeu, o pedido pode já ter sido criado. Descartar
+        estes dados não cancela pedidos.
+      </p>
+    </aside>
+    <form id="checkout-form" class="checkout-layout" method="post">
+      <div class="checkout-fields">
         <section class="card">
-          <h2>
-            <span class="section-number">1</span>Dados para o pedido
-          </h2>
-          <div class="form-grid">
+          <h2>Quem vai receber?</h2>
+          <p class="small muted">
+            Use um nome com Teste ou Exemplo, telefone com DDD 00 e e-mail
+            @exemplo.invalid. Dados reais são bloqueados neste protótipo.
+          </p>
+          <div class="form-grid contact-grid">
             <label class="field">
               <span>Nome fictício</span>
               <input
                 name="name"
+                data-synthetic="name"
                 value="Cliente Exemplo"
                 required
                 minlength="2"
                 maxlength="80"
                 autocomplete="off"
               />
-              <small>Use somente dados inventados nesta P1.</small>
             </label>
             <label class="field">
               <span>Telefone fictício</span>
               <input
                 name="phone"
+                data-synthetic="phone"
                 type="tel"
                 value="(00) 00000-0000"
                 required
@@ -74,12 +100,12 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
                 maxlength="40"
                 autocomplete="off"
               />
-              <small>Use um número inventado para testar.</small>
             </label>
-            <label class="field full">
+            <label class="field">
               <span>E-mail fictício</span>
               <input
                 name="email"
+                data-synthetic="email"
                 inputmode="email"
                 value="cliente@exemplo.invalid"
                 required
@@ -87,19 +113,14 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
                 maxlength="120"
                 autocomplete="off"
               />
-              <small>
-                Dados de envio, sem cadastro de conta ou código de confirmação.
-              </small>
             </label>
           </div>
         </section>
         <section class="card">
-          <h2>
-            <span class="section-number">2</span>Como prefere receber?
-          </h2>
+          <h2>Como prefere receber?</h2>
           <fieldset>
             <legend class="sr-only">Modalidade de entrega</legend>
-            <div class="choice-list">
+            <div class="choice-list compact-choices">
               <label class="choice">
                 <input type="radio" name="fulfillment" value="PICKUP" checked />
                 <span>
@@ -114,7 +135,7 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
                     <strong>
                       Entrega da loja · {money(store.delivery_fee)}
                     </strong>
-                    <small>Feita pelo vendedor, nos bairros atendidos.</small>
+                    <small>Nos bairros atendidos.</small>
                   </span>
                 </label>
               )}
@@ -122,9 +143,7 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
                 <input type="radio" name="fulfillment" value="QUOTE" />
                 <span>
                   <strong>Combinar entrega com a loja</strong>
-                  <small>
-                    A loja propõe o frete. Você aceita antes de fechar o total.
-                  </small>
+                  <small>Você aprova o frete antes de fechar o total.</small>
                 </span>
               </label>
             </div>
@@ -161,77 +180,36 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
             </label>
           </div>
         </section>
-        <section class="card">
-          <h2>
-            <span class="section-number">3</span>Pagamento de demonstração
-          </h2>
-          <fieldset>
-            <legend class="sr-only">Forma de pagamento simulada</legend>
-            <div class="choice-list">
-              <label class="choice">
-                <input
-                  type="radio"
-                  name="payment"
-                  value="PIX_SIMULATED"
-                  checked
-                />
-                <span>
-                  <strong>Simular Pix</strong>
-                  <small>
-                    Sem chave e sem QR cobravel. Nenhum dinheiro é transferido.
-                  </small>
-                </span>
-              </label>
-              <label class="choice">
-                <input
-                  type="radio"
-                  name="payment"
-                  value="ON_FULFILLMENT_SIMULATED"
-                />
-                <span>
-                  <strong>Simular pagamento na retirada ou entrega</strong>
-                  <small>Apenas demonstração do fluxo de atendimento.</small>
-                </span>
-              </label>
-            </div>
-          </fieldset>
-        </section>
-        <section class="card">
+        <details class="card optional-note">
+          <summary>Adicionar observação (opcional)</summary>
           <label class="field">
-            <span>
-              Alguma observação? <span class="muted">(opcional)</span>
-            </span>
+            <span>Alguma observação?</span>
             <textarea
               name="note"
               maxlength="300"
-              placeholder="Ex.: vou retirar com uma sacola reutilizável."
+              placeholder="Ex.: vou retirar com minha sacola."
             ></textarea>
           </label>
-          <label class="checkbox">
-            <input name="consent" type="checkbox" required />
-            <span>
-              Confirmo que uso apenas dados fictícios e entendo que este pedido
-              é uma simulação, sem compra ou pagamento real.{" "}
-              <a
-                class="inline-link"
-                href="/politicas"
-                target="_blank"
-                rel="noopener"
-              >
-                Condições da demonstração
-              </a>
-              .
-            </span>
-          </label>
-        </section>
+        </details>
       </div>
       <aside class="card summary">
-        <h2>
-          <Icon name="bag" />
-          Seu pedido
-        </h2>
-        <p class="small muted">{store.title}</p>
-        <ul id="checkout-items" class="summary-list"></ul>
+        <h2>Finalizar pedido</h2>
+        <details class="checkout-review">
+          <summary>Ver itens do carrinho</summary>
+          <ul id="checkout-items" class="summary-list"></ul>
+          <a class="inline-link" href={`/loja/${store.slug}/carrinho`}>
+            Alterar itens
+          </a>
+        </details>
+        <div class="field payment-choice">
+          <label for="checkout-payment">Pagamento de demonstração</label>
+          <select id="checkout-payment" name="payment">
+            <option value="PIX_SIMULATED">Simular Pix</option>
+            <option value="ON_FULFILLMENT_SIMULATED">
+              Simular na retirada ou entrega
+            </option>
+          </select>
+        </div>
         <div class="total-row">
           <span>Produtos</span>
           <strong id="checkout-subtotal"></strong>
@@ -245,22 +223,37 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
           <strong id="checkout-total"></strong>
         </div>
         <p id="quote-notice" class="notice" hidden>
-          O total ficará em aberto até você aceitar a proposta de frete. Nenhum
-          pagamento é liberado antes do aceite da loja.
+          O total fica em aberto até você aceitar o frete. Nenhum pagamento
+          antes do aceite da loja.
         </p>
-        <p class="small muted">
-          Os valores finais são recalculados pelo servidor ao enviar.
-        </p>
+        <label class="checkbox">
+          <input name="consent" type="checkbox" required />
+          <span>
+            Confirmo que uso apenas dados fictícios e entendo que este pedido é
+            uma simulação, sem compra ou pagamento real.{" "}
+            <a
+              class="inline-link"
+              href="/politicas"
+              target="_blank"
+              rel="noopener"
+            >
+              Condições da demonstração
+            </a>
+            .
+          </span>
+        </label>
         <button
           class="button button-primary button-full"
           type="submit"
           id="submit-order"
+          disabled
         >
           Enviar pedido de teste <Icon name="arrow" size={18} />
         </button>
         <p id="feedback" class="feedback" role="alert" aria-live="polite"></p>
         <p class="small muted">
-          Guarde o link de acompanhamento exibido após o envio.
+          Valores recalculados pelo servidor. Guarde o link de acompanhamento
+          após o envio.
         </p>
       </aside>
     </form>
@@ -268,4 +261,5 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
 </Layout>
 <script>
   import "../../../scripts/checkout";
+  import "../../../scripts/synthetic-fields";
 </script>

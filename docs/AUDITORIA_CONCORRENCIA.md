@@ -28,14 +28,14 @@ Os quatro primeiros testes de reprodução executados antes das correções falh
 
 “Chamada D1” nesta tabela significa uma operação no binding (`first`, `all`, `run` ou `batch`). Um batch ainda executa suas consultas SQL; a redução de chamadas não equivale a reduzir todas as linhas lidas ou o custo SQL na mesma proporção.
 
-| Caminho                             | Antes                                                                               | Depois                                                                     |
-| ----------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Atualização do painel               | 2 requisições HTTP; 5 chamadas D1; 4 verificações JWT passando por middleware e API | 1 requisição HTTP; 2 chamadas D1, com 4 consultas SQL; 1 verificação JWT   |
-| Consulta de acompanhamento          | 8 chamadas D1, incluindo limitador                                                  | 2 chamadas D1, com as mesmas 8 consultas SQL, fora a manutenção amortizada |
-| Consulta pública do catálogo        | 3 chamadas D1                                                                       | 2 chamadas D1, com 3 consultas SQL                                         |
-| Declaração/conferência de pagamento | Leitura de itens, cotação e pagamento                                               | Leitura somente do pagamento necessário à operação                         |
-| Cabeçalho do painel                 | Consulta adicional à loja                                                           | Nome e slug vêm da consulta autenticada da sessão                          |
-| Composição de catálogo em memória   | Varredura de todos os vínculos para cada produto                                    | Agrupamento por ID de combo, sem varreduras repetidas                      |
+| Caminho                             | Antes                                                                               | Depois                                                                                                           |
+| ----------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Atualização do painel               | 2 requisições HTTP; 5 chamadas D1; 4 verificações JWT passando por middleware e API | 1 requisição HTTP; 2 chamadas D1, com 5 consultas SQL (inclui fila pendente na revisão de UX); 1 verificação JWT |
+| Consulta de acompanhamento          | 8 chamadas D1, incluindo limitador                                                  | 2 chamadas D1, com as mesmas 8 consultas SQL, fora a manutenção amortizada                                       |
+| Consulta pública do catálogo        | 3 chamadas D1                                                                       | 2 chamadas D1, com 3 consultas SQL                                                                               |
+| Declaração/conferência de pagamento | Leitura de itens, cotação e pagamento                                               | Leitura somente do pagamento necessário à operação                                                               |
+| Cabeçalho do painel                 | Consulta adicional à loja                                                           | Nome e slug vêm da consulta autenticada da sessão                                                                |
+| Composição de catálogo em memória   | Varredura de todos os vínculos para cada produto                                    | Agrupamento por ID de combo, sem varreduras repetidas                                                            |
 
 Os orçamentos de chamadas são verificados em [query-budget.test.ts](../tests/query-budget.test.ts). O teste de JWT confirma uma única verificação para oito consumidores simultâneos da mesma requisição e recusa a reutilização para outro token ou audiência.
 
