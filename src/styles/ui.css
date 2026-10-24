@@ -225,25 +225,6 @@ body:has(dialog[open]) {
 #order-detail .card {
   border: 2px solid #171717;
 }
-.queue-stack {
-  position: relative;
-  isolation: isolate;
-}
-.queue-stack.has-next::before,
-.queue-stack.has-next::after {
-  content: "";
-  position: absolute;
-  inset: 6px -5px -6px;
-  border: 1px solid #171717;
-  border-radius: 12px;
-  background: #ece8dc;
-  z-index: -1;
-}
-.queue-stack.has-next::after {
-  inset: 12px -10px -12px;
-  z-index: -2;
-  background: #d9d5c9;
-}
 .queue-card {
   border: 2px solid #171717;
   border-radius: 12px;
@@ -614,6 +595,10 @@ body:has(dialog[open]) {
 /* Product names lead the decision; the two actions stay at opposite bottom corners. */
 #order-queue {
   width: min(590px, calc(100% - 24px));
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
 }
 .queue-products {
   background: #e8f0dc;
@@ -842,4 +827,169 @@ body:has(dialog[open]) {
   align-items: center;
   min-height: 44px;
   padding-block: 10px;
+}
+
+/* Contextual help is non-modal: highlighted fields remain usable. */
+.guide-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 28px;
+  line-height: 1;
+}
+.guide-close:hover {
+  background: var(--soft, #f6e9dd);
+}
+.guide-tools {
+  align-items: center;
+}
+.guide-tools [data-guide-skip] {
+  margin-inline-start: auto;
+}
+.floating-guide {
+  position: fixed;
+  z-index: 40;
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(480px, 55dvh);
+  overflow: auto;
+  padding: 14px;
+  margin: 0;
+  border: 2px solid var(--accent);
+  background: var(--paper);
+  box-shadow: 0 8px 36px #0003;
+  overscroll-behavior: contain;
+}
+.store-theme .floating-guide {
+  background: var(--paper);
+  border-color: var(--accent);
+}
+.floating-guide .novel-stage {
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 10px;
+}
+.floating-guide .novel-character svg {
+  width: 40px;
+  height: 40px;
+}
+.floating-guide .novel-dialogue h2 {
+  font-size: 19px;
+  margin: 4px 0 8px;
+}
+.floating-guide .novel-dialogue [data-guide-text] {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.floating-guide .novel-controls {
+  gap: 8px;
+  margin-top: 12px;
+}
+.floating-guide .novel-controls .button {
+  min-height: 44px;
+  font-size: 12px;
+  padding: 10px 12px;
+}
+.floating-guide .guide-tools {
+  margin-bottom: 8px;
+}
+.floating-guide [data-guide-feedback]:empty {
+  display: none;
+}
+.floating-guide::before {
+  content: "↑";
+  display: block;
+  color: var(--accent);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.floating-guide[data-side="right"]::before {
+  content: "←";
+}
+.floating-guide[data-side="left"]::before {
+  content: "→";
+  text-align: right;
+}
+.floating-guide[data-side="above"]::before {
+  content: "↓";
+}
+
+.guide-target {
+  outline: 3px solid var(--accent) !important;
+  outline-offset: 5px;
+  scroll-margin-block: 110px;
+}
+html[data-guide-active="true"] body {
+  padding-bottom: var(--guide-space, 320px);
+}
+.editor-dialog[data-guided] {
+  padding-bottom: var(--guide-space, 320px);
+}
+.queue-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.queue-card-heading h2 {
+  font-size: 19px;
+  margin: 0;
+}
+.queue-card-heading h2:focus {
+  outline: none;
+}
+.queue-card .queue-count {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.queue-card :is(#queue-note, #queue-feedback, #queue-reason-error):empty {
+  display: none;
+}
+.queue-card .queue-actions {
+  margin-bottom: 8px;
+}
+.notification-settings {
+  margin: 12px 0;
+  color: var(--muted);
+}
+.notification-settings summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding-block: 12px;
+  font-size: 13px;
+}
+.notification-settings .button {
+  margin: 6px 8px 8px 0;
+  font-size: 12px;
+}
+@media (max-width: 700px) {
+  .floating-guide {
+    max-height: 43dvh;
+    padding: 12px;
+  }
+  .floating-guide .novel-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .floating-guide .novel-character {
+    display: none;
+  }
+  .floating-guide .novel-speaker {
+    display: none;
+  }
+  .floating-guide .novel-controls {
+    margin-top: 8px;
+  }
+  .floating-guide .novel-dialogue h2 {
+    font-size: 17px;
+  }
 }

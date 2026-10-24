@@ -89,7 +89,7 @@ test("cadastro leva ao roteiro, salva o visual e mantém o catálogo exclusivo",
     .getByLabel("Banner ilustrado pronto", { exact: true })
     .selectOption("sweets");
   await expect(page.locator("#store-guide [data-guide-title]")).toContainText(
-    "visual da loja inteira",
+    "cores da loja inteira",
   );
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
@@ -111,15 +111,17 @@ test("cadastro leva ao roteiro, salva o visual e mantém o catálogo exclusivo",
     setup_complete: 0,
     is_open: 0,
   });
-  for (const heading of [
-    "Seu primeiro produto",
-    "Dois produtos",
-    "Pronto para testar",
-  ]) {
-    await page.locator("#catalog-guide [data-guide-next]").click();
-    await expect(
-      page.locator("#catalog-guide [data-guide-title]"),
-    ).toContainText(heading);
+  // Follow every tip, including the real product and combo form fields.
+  const guide = page.locator("#catalog-guide");
+  const scenes = JSON.parse((await guide.getAttribute("data-scenes"))!);
+  for (let index = 1; index < scenes.length; index++) {
+    await guide.locator("[data-guide-next]").click();
+    await expect(guide.locator("[data-guide-title]")).toHaveText(
+      scenes[index].title,
+    );
+    await expect(page.locator(scenes[index].target)).toHaveClass(
+      /guide-target/,
+    );
   }
   await audit(page);
   await page.locator("[data-guide-finish]").click();
@@ -251,7 +253,11 @@ test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõ
   const store = await prepare(page.request);
   const first = await create(page.request, store);
   await page.goto("/painel/pedidos");
-  await expect(page.locator("#queue-title")).toContainText(first.protocol);
+  await expect(page.locator("#queue-detail")).toHaveAttribute(
+    "href",
+    `/painel/pedidos/${first.id}`,
+    { timeout: 15000 },
+  );
   await expect(page.locator("#queue-items")).toContainText("Doce fictício");
   await expect(page.locator("#queue-total")).toContainText("10,00");
   const reject = await page.locator("#queue-reject").boundingBox(),
@@ -264,6 +270,7 @@ test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõ
       .evaluate((node) => Number(getComputedStyle(node).fontWeight)),
   ).toBeGreaterThanOrEqual(700);
   await page.locator("#pause-order-queue").click();
+  await page.getByText("Preferências dos avisos", { exact: true }).click();
   await page.locator("#enable-order-alerts").click();
   await expect(page.locator("#enable-order-alerts")).toHaveAttribute(
     "aria-pressed",
@@ -275,8 +282,13 @@ test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõ
     "1 pedido(s) atrás",
     { timeout: 25000 },
   );
-  await expect(page.locator("#queue-title")).toContainText(first.protocol);
-  await expect(page.locator("#queue-stack")).toHaveClass(/has-next/);
+  await expect(page.locator("#queue-detail")).toHaveAttribute(
+    "href",
+    `/painel/pedidos/${first.id}`,
+    { timeout: 15000 },
+  );
+  await expect(page.locator("#queue-stack")).toHaveCount(0);
+  await expect(page.locator("#order-queue")).not.toContainText(first.protocol);
   await page.setViewportSize({ width: 320, height: 800 });
   await audit(page);
   await page.screenshot({
@@ -284,7 +296,11 @@ test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõ
     fullPage: true,
   });
   await page.locator("#queue-accept").click();
-  await expect(page.locator("#queue-title")).toContainText(second.protocol);
+  await expect(page.locator("#queue-detail")).toHaveAttribute(
+    "href",
+    `/painel/pedidos/${second.id}`,
+    { timeout: 15000 },
+  );
   await expect(page.locator("#queue-location")).toContainText(
     "Rua de teste, 123",
   );
@@ -293,8 +309,11 @@ test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõ
   await page.locator("#queue-reject").click();
   await expect(page.locator("#order-queue")).toBeHidden();
   const quote = await create(page.request, store, "QUOTE");
-  await page.locator("#refresh-orders").click();
-  await expect(page.locator("#queue-title")).toContainText(quote.protocol);
+  await expect(page.locator("#queue-detail")).toHaveAttribute(
+    "href",
+    `/painel/pedidos/${quote.id}`,
+    { timeout: 15000 },
+  );
   await expect(page.locator("#queue-accept")).toBeHidden();
   await page.getByLabel("Frete da proposta (R$)").fill("7.00");
   await page.getByRole("button", { name: "Enviar proposta de frete" }).click();
@@ -321,8 +340,11 @@ test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõ
     ).status,
   ).toBe("QUOTE_PROPOSED");
   const fourth = await create(page.request, store);
-  await page.locator("#refresh-orders").click();
-  await expect(page.locator("#queue-title")).toContainText(fourth.protocol);
+  await expect(page.locator("#queue-detail")).toHaveAttribute(
+    "href",
+    `/painel/pedidos/${fourth.id}`,
+    { timeout: 15000 },
+  );
   const tracking = await (
     await page.request.get(`/api/v1/pedidos/${quote.token}`)
   ).json();
@@ -342,7 +364,11 @@ test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõ
     "1 pedido(s) atrás",
     { timeout: 25000 },
   );
-  await expect(page.locator("#queue-title")).toContainText(fourth.protocol);
+  await expect(page.locator("#queue-detail")).toHaveAttribute(
+    "href",
+    `/painel/pedidos/${fourth.id}`,
+    { timeout: 15000 },
+  );
   await page.keyboard.press("Escape");
   await expect(page.locator("#order-queue")).toBeHidden();
   expect(
@@ -353,7 +379,11 @@ test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõ
     ).status,
   ).toBe("PENDING");
   await page.locator("#open-order-queue").click();
-  await expect(page.locator("#queue-title")).toContainText(fourth.protocol);
+  await expect(page.locator("#queue-detail")).toHaveAttribute(
+    "href",
+    `/painel/pedidos/${fourth.id}`,
+    { timeout: 15000 },
+  );
   const session = await (
     await page.request.get("/painel/api/v1/session")
   ).json();
@@ -366,9 +396,11 @@ test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõ
   );
   expect(otherDecision.ok()).toBe(true);
   await page.locator("#queue-accept").click();
-  await expect(page.locator("#queue-feedback")).toContainText("atualizado");
-  await page.locator("#queue-reload").click();
-  await expect(page.locator("#queue-title")).toContainText(quote.protocol);
+  await expect(page.locator("#queue-detail")).toHaveAttribute(
+    "href",
+    `/painel/pedidos/${quote.id}`,
+    { timeout: 15000 },
+  );
   await expect(page.locator("#queue-total")).toContainText("17,00");
   await page.locator("#queue-accept").click();
   await expect(page.locator("#order-queue")).toBeHidden();
@@ -381,7 +413,11 @@ test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõ
   await expect(page.locator("#order-queue")).toBeHidden();
   await expect(page.locator("#status-filter")).toBeFocused();
   await page.locator("#open-order-queue").click();
-  await expect(page.locator("#queue-title")).toContainText(fifth.protocol);
+  await expect(page.locator("#queue-detail")).toHaveAttribute(
+    "href",
+    `/painel/pedidos/${fifth.id}`,
+    { timeout: 15000 },
+  );
   await page.locator("#queue-reject").click();
   await expect(page.locator("#queue-reason-error")).toContainText(
     "pelo menos 3",
@@ -393,4 +429,66 @@ test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõ
   );
   await page.locator("#queue-reject").click();
   await expect(page.locator("#order-queue")).toBeHidden();
+});
+
+test("prioridade fora do lote é conferida sem trocar o pedido nem sobrepor leituras lentas", async ({
+  page,
+}) => {
+  await page.clock.install();
+  const store = await prepare(page.request);
+  const first = await create(page.request, store);
+  await page.goto("/painel/pedidos");
+  await expect(page.locator("#queue-detail")).toHaveAttribute(
+    "href",
+    `/painel/pedidos/${first.id}`,
+  );
+  await create(page.request, store);
+  await page.route("**/painel/api/v1/visao-geral", async (route) => {
+    const response = await route.fetch();
+    const dashboard = await response.json();
+    await route.fulfill({
+      response,
+      json: {
+        ...dashboard,
+        queue: dashboard.queue.filter(
+          (entry: { id: string }) => entry.id !== first.id,
+        ),
+      },
+    });
+  });
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let detailReads = 0;
+  await page.route(`**/painel/api/v1/pedidos/${first.id}`, async (route) => {
+    detailReads++;
+    await gate;
+    await route.continue();
+  });
+  try {
+    await page.clock.fastForward(6000);
+    await expect.poll(() => detailReads).toBe(1);
+    await page.clock.fastForward(6000);
+    // The second dashboard read still omits the focused order, while its detail is pending.
+    await expect(page.locator("#queue-count")).toContainText(
+      "1 pedido(s) atrás",
+    );
+    expect(detailReads).toBe(1);
+    const response = page.waitForResponse((response) =>
+      response.url().endsWith(`/painel/api/v1/pedidos/${first.id}`),
+    );
+    release();
+    await response;
+    await expect(page.locator("#queue-detail")).toHaveAttribute(
+      "href",
+      `/painel/pedidos/${first.id}`,
+    );
+    await expect(page.locator("#queue-accept")).toBeEnabled();
+    await expect(page.locator("#order-queue")).not.toContainText(
+      first.protocol,
+    );
+  } finally {
+    release();
+  }
 });

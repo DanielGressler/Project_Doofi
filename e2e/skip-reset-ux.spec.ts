@@ -13,7 +13,8 @@ async function register(page: Page, skip = false) {
   await page.getByLabel("Senha para a nova loja").fill("senha-de-teste");
   await page.getByLabel("Estou criando uma loja").check();
   if (skip) {
-    await page.getByLabel("Pular tutorial e configurar").check();
+    await expect(page.locator('input[name="skipTutorial"]')).toHaveCount(0);
+    await page.locator("#register-guide [data-guide-skip]").click();
     await expect(page.locator("#register-guide")).toBeHidden();
   }
   await page
@@ -97,11 +98,15 @@ test("pular preserva edições, permite salvar sem roteiro e mantém os rascunho
   await page
     .getByLabel("Nome do produto", { exact: true })
     .fill("Rascunho de teste");
-  await page.keyboard.press("Escape");
   await page
     .getByRole("button", { name: "Pular tutorial", exact: true })
     .click();
   await expect(page.locator("#catalog-tutorial")).toBeHidden();
+  await expect(page.getByLabel("Nome do produto", { exact: true })).toHaveValue(
+    "Rascunho de teste",
+  );
+  await expect(page.locator("#product-dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
   await page
     .getByRole("button", { name: "Novo produto", exact: false })
     .click();
@@ -168,7 +173,7 @@ test("nova geração limpa carrinhos e contatos antigos sem remover o acesso ext
     ),
   ).toBe(true);
 });
-test("atualização pode ser pausada e uma consulta manual continua disponível", async ({
+test("atualização é automática, pode ser pausada e retoma sem botão de atualizar", async ({
   page,
 }) => {
   await page.clock.install();
@@ -180,6 +185,12 @@ test("atualização pode ser pausada e uma consulta manual continua disponível"
   await page.getByRole("button", { name: "Entrar no painel" }).click();
   await expect(page).toHaveURL(/\/painel\/pedidos$/);
   await pauseQueue(page);
+  await expect(page.locator("#refresh-orders")).toHaveCount(0);
+  await expect(page.locator("#queue-reload")).toHaveCount(0);
+  const initial = reads;
+  await page.clock.fastForward(6500);
+  await expect.poll(() => reads).toBeGreaterThan(initial);
+  await page.getByText("Preferências dos avisos", { exact: true }).click();
   await page.locator("#pause-order-updates").click();
   await expect(page.locator("#pause-order-updates")).toHaveAttribute(
     "aria-pressed",
@@ -188,14 +199,6 @@ test("atualização pode ser pausada e uma consulta manual continua disponível"
   const before = reads;
   await page.clock.fastForward(65000);
   expect(reads).toBe(before);
-  const response = page.waitForResponse((response) =>
-    response.url().endsWith("/painel/api/v1/visao-geral"),
-  );
-  await page.locator("#refresh-orders").click();
-  await response;
-  expect(reads).toBe(before + 1);
-  await page.clock.fastForward(65000);
-  expect(reads).toBe(before + 1);
   const resumed = page.waitForResponse((response) =>
     response.url().endsWith("/painel/api/v1/visao-geral"),
   );
@@ -205,5 +208,70 @@ test("atualização pode ser pausada e uma consulta manual continua disponível"
     "aria-pressed",
     "false",
   );
-  expect(reads).toBe(before + 2);
+  expect(reads).toBe(before + 1);
+});
+
+test("guia aponta um campo por vez e acompanha o cadastro real sem reabrir um formulário vazio", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await register(page);
+  await expect(page).toHaveURL(/\/painel\/loja\?tutorial=1$/);
+  await page.locator("#store-guide [data-guide-skip]").click();
+  await expect(page.locator("#store-guide")).toBeHidden();
+  await page.goto("/painel/catalogo?tutorial=1");
+  const guide = page.locator("#catalog-guide");
+  await page.locator('[data-open-dialog="product-dialog"]').click();
+  const form = page.locator("#new-product");
+  for (const [name, value] of [
+    ["title", "Bolo do guia Teste"],
+    ["category", "Doces"],
+    ["description", "Porção fictícia para testar o cadastro guiado"],
+    ["price", "12.50"],
+  ]) {
+    await expect(form.locator(`[name="${name}"]`)).toHaveClass(/guide-target/);
+    await expect(page.locator(".guide-target")).toHaveCount(1);
+    await form.locator(`[name="${name}"]`).fill(value);
+    await guide.locator("[data-guide-next]").click();
+  }
+  for (const name of ["image", "photo", "unavailable"]) {
+    await expect(form.locator(`[name="${name}"]`)).toHaveClass(/guide-target/);
+    await guide.locator("[data-guide-next]").click();
+  }
+  await expect(form.locator('button[type="submit"]')).toHaveClass(
+    /guide-target/,
+  );
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await page.screenshot({
+    path: "docs/evidencias/guia-produto-mobile.png",
+    fullPage: false,
+  });
+  await form
+    .getByRole("button", { name: "Criar produto fictício", exact: true })
+    .click();
+  await expect(guide).toHaveAttribute("data-chapter", "10");
+  await expect(page.locator("#product-dialog")).not.toBeVisible();
+  const card = page
+    .locator(".catalog-card")
+    .filter({ hasText: "Bolo do guia Teste" });
+  await expect(card).toBeVisible();
+  await expect(card.locator("[data-product-toggle]")).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
+  await guide.locator("[data-guide-skip]").click();
+  await expect(page.locator(".guide-target")).toHaveCount(0);
+  await expect(page.locator("h1")).toBeFocused();
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  await page.screenshot({
+    path: "docs/evidencias/catalogo-destaque-mobile.png",
+    fullPage: true,
+  });
 });

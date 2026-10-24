@@ -16,6 +16,8 @@ A interface agora separa **cardápio → carrinho → dados e entrega → acompa
 
 A [auditoria de segurança do cliente](docs/AUDITORIA_SEGURANCA_CLIENTE.md) cobre cookies restritos ao painel, rascunhos com expiração e recuperação sem mistura de dados, além de SQL injection, XSS, CSRF e isolamento empresarial. O cliente continua sem login. Execute `npm ci` ao atualizar esta versão: o lockfile inclui correções transitivas de segurança.
 
+A [revisão das notificações, paleta e guia](docs/NOTIFICACOES_E_GUIA.md) unifica as cores da loja e do painel, destaca os cartões do catálogo e troca a caixa de pular tutorial por um X. O guia aponta para campos reais, um por vez. O aviso de compra usa apenas o cartão central, sem protocolo, e recebe atualizações automáticas preservando a prioridade do pedido em foco.
+
 ## Executar
 
 Requisitos: Node 24 (ou >=22.22), npm e Linux/macOS/Windows compatível com workerd. As versões exatas estão em `package-lock.json`.

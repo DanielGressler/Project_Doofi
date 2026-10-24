@@ -1,4 +1,4 @@
-/* Store-wide typography, surfaces and layout. Admin pages keep their own theme. */
+/* One store's typography and colors follow both customer and merchant pages. */
 .store-theme {
   --radius: 14px;
   --section-space: 36px;
@@ -202,6 +202,80 @@
 }
 .store-theme .inline-link {
   color: var(--accent-dark);
+}
+.store-theme
+  :is(
+    .panel-nav a,
+    .panel-store span,
+    .stat-card span,
+    .stat-card small,
+    .stats-caption
+  ) {
+  color: var(--muted);
+}
+.store-theme
+  :is(
+    .panel-nav a.active,
+    .panel-nav a:hover,
+    .wizard-progress [aria-current="step"]
+  ) {
+  background: var(--soft);
+  color: var(--accent-dark);
+}
+.store-theme
+  :is(.stat-card, .order-row, .session-profile, .ui-dialog, .queue-card) {
+  background: var(--paper);
+  color: var(--ink);
+}
+.store-theme
+  :is(.novel-guide, .banner-preset-preview, .queue-products, .queue-location) {
+  background: var(--soft);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.store-theme .novel-character {
+  color: var(--accent);
+}
+.store-theme .queue-value {
+  background: var(--hero);
+  color: var(--accent-dark);
+}
+.store-theme .queue-items li {
+  border-color: var(--line);
+}
+.store-theme .queue-accept {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent-dark);
+}
+.store-theme .queue-accept:hover {
+  background: var(--accent-dark);
+}
+.store-theme .catalog-card {
+  background: var(--soft);
+  border: 1px solid var(--accent);
+  border-inline-start: 5px solid var(--accent);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.store-theme .catalog-card.is-expanded {
+  background: var(--paper);
+}
+.store-theme .catalog-card-heading {
+  background: var(--soft);
+  border-radius: 10px;
+}
+.store-theme .catalog-toggle {
+  background: var(--accent);
+  border-color: var(--accent-dark);
+  color: white;
+}
+.store-theme .catalog-toggle:hover {
+  background: var(--accent-dark);
+}
+.store-theme .product-card {
+  background: var(--soft);
+  border-color: var(--line);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .store-theme .timeline li {
   border-color: var(--line);

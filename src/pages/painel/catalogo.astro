@@ -2,43 +2,30 @@
 import PanelLayout from "../../layouts/PanelLayout.astro";
 import type { Store } from "../../lib/types";
 import NovelGuide from "../../components/NovelGuide.astro";
+import { catalogGuide as scenes } from "../../lib/guide-scenes";
 import ProductEditor from "../../components/ProductEditor.astro";
 import { env } from "cloudflare:workers";
 import { getProducts } from "../../lib/catalog";
 const [products, store] = await Promise.all([
   getProducts(env.DB, Astro.locals.session!.store_id),
-  env.DB.prepare("SELECT setup_complete,version FROM stores WHERE id=?")
+  env.DB.prepare(
+    "SELECT setup_complete,version,palette,font,layout FROM stores WHERE id=?",
+  )
     .bind(Astro.locals.session!.store_id)
-    .first<Pick<Store, "setup_complete" | "version">>(),
+    .first<
+      Pick<Store, "setup_complete" | "version" | "palette" | "font" | "layout">
+    >(),
 ]);
 const tutorial =
   Astro.locals.session!.role === "owner" &&
   (Astro.url.searchParams.get("tutorial") === "1" || !store!.setup_complete);
 const chapter = Math.min(
-  3,
+  scenes.length - 1,
   Math.max(0, Math.floor(Number(Astro.url.searchParams.get("capitulo")) || 0)),
 );
-const scenes = [
-  {
-    title: "O rodapé acompanha sua loja",
-    text: "Aqui embaixo ficam os atalhos para loja, carrinho e dados de envio. No painel, o rodapé leva a pedidos, catálogo e configurações. As cores e fontes que você escolheu acompanham toda a página pública, inclusive o rodapé.",
-  },
-  {
-    title: "Seu primeiro produto, sem complicação",
-    text: "Clique em Novo produto para abrir a criação. Preencha nome, descrição, categoria (Doces, Bebidas, Pratos principais, Petiscos ou Lanches) e preço. Marque Indisponível apenas quando não puder vender. Escolha uma ilustração ou envie sua foto: o sistema ajusta a imagem e dá preferência à sua foto.",
-  },
-  {
-    title: "Dois produtos, um combo",
-    text: "Combos têm uma seção própria. Depois de cadastrar dois produtos individuais, clique em Novo combo, escolha os dois itens, dê um nome e defina o preço do conjunto. Se um item ficar indisponível, o combo também para de vender. Você pode criar os produtos depois de concluir este guia.",
-  },
-  {
-    title: "Pronto para testar o atendimento",
-    text: "Os cartões começam fechados: só nome e botão +. Abra para ver os detalhes e editar; use − para minimizar. Em Pedidos, a fila destaca um pedido de cada vez: recusar à esquerda e aceitar à direita. Uma nova chegada aguarda atrás. Frete a combinar precisa primeiro da aprovação do cliente. Conclua para disponibilizar a loja na lista de teste.",
-  },
-];
 ---
 
-<PanelLayout title="Catálogo" active="catalog">
+<PanelLayout title="Catálogo" active="catalog" appearance={store!}>
   <div class="page-heading">
     <div>
       <div class="eyebrow">O QUE SUA LOJA FAZ DE BOM</div>
@@ -62,55 +49,10 @@ const scenes = [
         id="catalog-guide"
         scenes={scenes}
         controls
+        floating
         skip
         chapter={chapter}
-      >
-        <div
-          class="guide-example"
-          data-guide-preview="0"
-          hidden={chapter !== 0}
-        >
-          <strong>Prévia do rodapé do cliente</strong>
-          <div class="guide-footer-example">
-            <span>doofi.</span>
-            <span>Loja · Carrinho · Dados de envio</span>
-          </div>
-          <a
-            class="inline-link"
-            href={`/loja/${Astro.locals.session!.store_slug}`}
-            target="_blank"
-            rel="noopener"
-          >
-            Ver sua loja e o rodapé ↗
-          </a>
-        </div>
-        <div
-          class="guide-example"
-          data-guide-preview="1"
-          hidden={chapter !== 1}
-        >
-          <strong>Exemplo de produto</strong>
-          <p>Bolo Teste · Doces · R$ 12,00 · Disponível</p>
-          <button
-            class="button button-primary"
-            data-open-dialog="product-dialog"
-          >
-            Experimentar criar produto
-          </button>
-        </div>
-        <div
-          class="guide-example"
-          data-guide-preview="2"
-          hidden={chapter !== 2}
-        >
-          <strong>Exemplo de combo</strong>
-          <p>Café + pão → Café da manhã Teste · R$ 18,00</p>
-          <button class="button button-primary" data-open-dialog="combo-dialog">
-            Experimentar criar combo
-          </button>
-        </div>
-        <p id="guide-feedback" class="feedback" role="alert"></p>
-      </NovelGuide>
+      />
     </div>
   )}
   <p class="notice">
@@ -215,14 +157,17 @@ const scenes = [
           "POST",
           $("#panel-app").dataset.csrf,
         );
+        $("#catalog-guide").dispatchEvent(new Event("guide:hide"));
         $("#catalog-tutorial").hidden = true;
         const url = new URL(location.href);
         url.searchParams.delete("tutorial");
         url.searchParams.delete("capitulo");
         history.replaceState(null, "", url);
-        const heading = $("h1");
-        heading.tabIndex = -1;
-        heading.focus();
+        const focus =
+          document.querySelector<HTMLElement>(".editor-dialog[open] input") ??
+          $("h1");
+        focus.tabIndex = focus.matches("h1") ? -1 : focus.tabIndex;
+        focus.focus();
         $("#feedback").textContent =
           "Tutorial pulado. Seus produtos continuam disponíveis para edição. Você pode reabrir o guia pelo rodapé.";
       } catch (error) {
@@ -243,7 +188,9 @@ const scenes = [
         );
         location.assign("/painel/pedidos");
       } catch (error) {
-        $("#guide-feedback").textContent = (error as Error).message;
+        $("#catalog-guide [data-guide-feedback]").textContent = (
+          error as Error
+        ).message;
       }
     });
   });

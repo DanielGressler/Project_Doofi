@@ -2,6 +2,7 @@
 import ProductArt from "../../components/ProductArt.astro";
 import HeroArt from "../../components/HeroArt.astro";
 import NovelGuide from "../../components/NovelGuide.astro";
+import { storeGuide } from "../../lib/guide-scenes";
 import PanelLayout from "../../layouts/PanelLayout.astro";
 import { env } from "cloudflare:workers";
 import type { Store } from "../../lib/types";
@@ -18,7 +19,7 @@ const tutorial =
   Astro.url.searchParams.get("tutorial") === "1" || !store.setup_complete;
 ---
 
-<PanelLayout title="Minha loja" active="store">
+<PanelLayout title="Minha loja" active="store" appearance={store}>
   <div class="page-heading">
     <div>
       <div class="eyebrow">SEU JEITO DE ATENDER</div>
@@ -32,24 +33,10 @@ const tutorial =
     <NovelGuide
       id="store-guide"
       skip
-      scenes={[
-        {
-          title: "Vamos dar uma identidade à loja",
-          text: "Escolha o nome da sua marca de teste, informe um telefone com DDD 00 e uma descrição. Use dados fictícios também no endereço. Os dados de uma loja ficam separados das outras.",
-        },
-        {
-          title: "Como seu pedido chega?",
-          text: "Você pode oferecer retirada e frete a combinar. Marque Possui entregador próprio para exibir a taxa fixa. Esse valor só aparece ao comprador quando a opção está marcada.",
-        },
-        {
-          title: "Agora, o visual da loja inteira",
-          text: "Escolha uma paleta, fontes e layout. Use um dos banners ilustrados prontos ou envie sua própria imagem: ela tem prioridade e será ajustada automaticamente. Remova o banner próprio para voltar à ilustração. A prévia mostra cores e fontes antes de salvar.",
-        },
-        {
-          title: "Confira e continue a história",
-          text: "Salve as configurações para seguir ao catálogo. Lá eu mostro o rodapé, como preencher produtos e como montar combos. A loja aparecerá na lista de clientes ao concluir o guia.",
-        },
-      ]}
+      floating
+      controls
+      finishLabel="Salvar e ir ao catálogo"
+      scenes={storeGuide}
     />
   ) : (
     <a class="inline-link" href="/painel/loja?tutorial=1">
@@ -377,6 +364,7 @@ const tutorial =
   import { $, api, busy, feedback } from "../../scripts/browser";
   import { upload } from "../../scripts/uploads";
   import { appearanceStyles } from "../../lib/appearance";
+  import { storeGuide, type GuideScene } from "../../lib/guide-scenes";
   import type { StoreAppearance } from "../../lib/types";
   const form = $<HTMLFormElement>("#store-form");
   let tutorial = form.dataset.tutorial === "true";
@@ -384,9 +372,6 @@ const tutorial =
   const steps = [...form.querySelectorAll<HTMLElement>("[data-wizard-step]")];
   function showStep(next: number) {
     step = next;
-    $("#store-guide")?.dispatchEvent(
-      new CustomEvent("guide:scene", { detail: step }),
-    );
     steps.forEach((node, i) => (node.hidden = i !== step));
     document
       .querySelectorAll<HTMLElement>("[data-wizard-indicator]")
@@ -399,9 +384,6 @@ const tutorial =
     $("#save-store").hidden = step !== 3;
     $("#wizard-review").textContent =
       `${$<HTMLInputElement>('[name="title"]', form).value} · ${$<HTMLSelectElement>('[name="palette"]', form).selectedOptions[0].text} · ${$<HTMLSelectElement>('[name="font"]', form).selectedOptions[0].text}`;
-    const heading = $("h2, legend", steps[step]);
-    heading.tabIndex = -1;
-    heading.focus();
   }
   function validateStep(index: number) {
     const invalid = [
@@ -414,12 +396,30 @@ const tutorial =
     invalid.reportValidity();
     return false;
   }
+  const guide = $("#store-guide");
+  function navigateGroup(group: number) {
+    guide.dispatchEvent(
+      new CustomEvent("guide:scene", {
+        detail: storeGuide.findIndex((scene) => scene.group === group),
+      }),
+    );
+  }
   if (tutorial) {
     form.noValidate = true;
-    $("#wizard-next").onclick = () => {
-      if (validateStep(step)) showStep(step + 1);
-    };
-    $("#wizard-back").onclick = () => showStep(step - 1);
+    guide.addEventListener("guide:beforechange", (event) => {
+      const next = (event as CustomEvent<{ scene: GuideScene }>).detail.scene
+        .group!;
+      if (next > step && !validateStep(step)) event.preventDefault();
+    });
+    guide.addEventListener("guide:change", (event) => {
+      showStep(
+        (event as CustomEvent<{ scene: GuideScene }>).detail.scene.group!,
+      );
+    });
+    $("#wizard-next").onclick = () => navigateGroup(step + 1);
+    $("#wizard-back").onclick = () => navigateGroup(step - 1);
+    $("#store-guide [data-guide-finish]").onclick = () =>
+      form.requestSubmit($<HTMLButtonElement>("#save-store"));
   }
   $("#store-guide [data-guide-skip]")?.addEventListener("click", (event) => {
     void busy(event.currentTarget as HTMLButtonElement, async () => {
@@ -434,7 +434,7 @@ const tutorial =
         form.dataset.tutorial = "false";
         tutorial = false;
         form.noValidate = false;
-        $("#store-guide").hidden = true;
+        guide.dispatchEvent(new Event("guide:hide"));
         $(".wizard-progress").hidden = true;
         steps.forEach((node) => (node.hidden = false));
         $("#wizard-back").hidden = true;
@@ -480,6 +480,23 @@ const tutorial =
     const sample = $("#appearance-preview");
     sample.style.cssText = appearanceStyles({ palette, font, layout });
     sample.dataset.layout = layout;
+    const guideSpace =
+      document.documentElement.style.getPropertyValue("--guide-space");
+    document.documentElement.style.cssText = appearanceStyles({
+      palette,
+      font,
+      layout,
+    });
+    if (guideSpace)
+      document.documentElement.style.setProperty("--guide-space", guideSpace);
+    document.documentElement.dataset.layout = layout;
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    themeColor?.setAttribute(
+      "content",
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--background")
+        .trim(),
+    );
   }
   form.addEventListener("change", preview);
   preview();
@@ -487,7 +504,7 @@ const tutorial =
     event.preventDefault();
     if (tutorial) {
       if (step < 3) {
-        if (validateStep(step)) showStep(step + 1);
+        if (validateStep(step)) navigateGroup(step + 1);
         return;
       }
       if (!steps.every((_, i) => validateStep(i))) return;
