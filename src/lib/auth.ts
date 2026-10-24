@@ -10,15 +10,8 @@ import {
   textField,
 } from "./core";
 import type { AuthenticatedSession, Session } from "./types";
-
-const cookieName = "doofi_session";
-export const cookieToken = (request: Request) =>
-  request.headers
-    .get("cookie")
-    ?.split(";")
-    .map((c) => c.trim())
-    .find((c) => c.startsWith(`${cookieName}=`))
-    ?.slice(cookieName.length + 1) ?? "";
+import { cookieToken, sessionCookie } from "./session-cookie";
+export { cookieToken } from "./session-cookie";
 export async function getSession(
   db: D1Database,
   request: Request,
@@ -27,7 +20,7 @@ export async function getSession(
   if (!/^[a-f0-9]{64}$/.test(token)) return null;
   return db
     .prepare(
-      `SELECT s.token_hash,s.csrf_token,s.user_id,m.store_id,m.role,u.email,t.title AS store_title,t.slug AS store_slug,t.setup_complete AS store_setup_complete FROM sessions s
+      `SELECT s.token_hash,s.csrf_token,s.expires_at AS session_expires_at,s.user_id,m.store_id,m.role,u.email,t.title AS store_title,t.slug AS store_slug,t.setup_complete AS store_setup_complete FROM sessions s
     JOIN users u ON u.id=s.user_id AND u.active=1
     JOIN store_memberships m ON m.user_id=u.id AND m.active=1
     JOIN stores t ON t.id=m.store_id AND t.active=1
@@ -54,9 +47,6 @@ export async function requireSession(
       "CSRF",
     );
   return session;
-}
-function cookie(value: string, request: Request, maxAge: number) {
-  return `${cookieName}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${new URL(request.url).protocol === "https:" ? "; Secure" : ""}`;
 }
 export async function login(
   db: D1Database,
@@ -135,7 +125,7 @@ export async function login(
     );
   return {
     csrfToken: csrf,
-    setCookie: cookie(token, request, 28800),
+    setCookie: sessionCookie(token, request, 28800),
     next: user.setup_complete ? "/painel/pedidos" : "/painel/loja?tutorial=1",
   };
 }
@@ -200,7 +190,7 @@ export async function register(
   }
   return {
     csrfToken: csrf,
-    setCookie: cookie(token, request, 28800),
+    setCookie: sessionCookie(token, request, 28800),
     next: "/painel/loja?tutorial=1",
   };
 }
@@ -215,5 +205,5 @@ export async function logout(
       .bind(session.token_hash),
     audit(db, session.store_id, session.user_id, "LOGOUT", session.user_id),
   ]);
-  return cookie("", request, 0);
+  return sessionCookie("", request, 0);
 }

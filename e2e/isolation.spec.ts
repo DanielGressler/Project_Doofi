@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("carrinhos por empresa, clientes em contextos separados e descarte dos dados do envio", async ({
   page,

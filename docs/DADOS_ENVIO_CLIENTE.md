@@ -5,7 +5,7 @@ O lojista continua usando o painel e o login existentes. O cliente informa os da
 ## Como testar
 
 1. Abra uma loja, adicione produtos e clique em **Continuar pedido**.
-2. Informe nome, telefone e e-mail fictícios. Para entrega, preencha também os campos de endereço já existentes.
+2. Revise a página do carrinho e clique em **Avançar para dados e entrega**. Informe nome, telefone e e-mail fictícios. Para entrega, preencha também os campos de endereço já existentes.
 3. Confirme o uso de dados fictícios e envie o pedido. O fluxo continua para o acompanhamento existente.
 4. Entre no painel da própria loja e abra o pedido: telefone e e-mail aparecem separados, junto ao nome e ao endereço.
 
@@ -50,3 +50,9 @@ Pedidos antigos recebem um registro `legacy-<id-do-pedido>`. O contato original 
 Foram validados 112 testes de código e 14 cenários de navegador, além de `astro check`, formatação, builds local/homologação e publicação `--dry-run`. Os testes cobrem chaves estrangeiras, isolamento A/B, contatos repetidos, ausência de conta do cliente, rollback e migração de pedidos antigos.
 
 `npm run db:verify-restore` verifica também os vínculos de dados de envio: nenhum pedido sem registro correspondente e nenhum registro sem pedido. A exportação original fica em `backup.sql`; o arquivo `restore.sql` posiciona as definições de tabelas antes dos dados, preservando valores literais e triggers. Isso permite restaurar a nova chave estrangeira no D1. Os testes e a restauração desta revisão usam somente o ambiente local.
+
+## Proteção do rascunho e da sessão empresarial
+
+A revisão de segurança limita o cookie do lojista ao painel e separa suas rotas de API. Dados de envio não recebem cookie de login. Um envio incerto mantém os campos e os itens originais bloqueados para não misturar pessoas nem mostrar um carrinho diferente do corpo reenviado. Rascunhos têm prazo de uma hora; a confirmação do servidor remove os dados de envio do armazenamento da aba antes da navegação. O link de acompanhamento continua podendo ser recuperado temporariamente se essa navegação falhar.
+
+As consultas públicas deixaram de carregar campos pessoais do pedido, e as respostas do painel também usam listas explícitas de campos. Consulte a [auditoria de segurança](AUDITORIA_SEGURANCA_CLIENTE.md) para testes de SQL injection, XSS, CSRF e isolamento.

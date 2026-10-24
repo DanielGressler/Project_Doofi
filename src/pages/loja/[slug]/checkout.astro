@@ -49,6 +49,24 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
         Explorar cardápio
       </a>
     </div>
+    <aside
+      id="checkout-recovery"
+      class="notice"
+      hidden
+      aria-label="Estado do envio"
+    >
+      <p id="recovery-message"></p>
+      <a id="recovery-link" class="inline-link" hidden>
+        Abrir acompanhamento do pedido →
+      </a>
+      <button id="reset-checkout" type="button" class="button button-quiet">
+        Descartar dados e iniciar outro pedido
+      </button>
+      <p class="small">
+        Se uma resposta se perdeu, o pedido pode já ter sido criado. Descartar
+        estes dados não cancela pedidos.
+      </p>
+    </aside>
     <form id="checkout-form" class="checkout-layout">
       <div class="checkout-fields">
         <section class="card">

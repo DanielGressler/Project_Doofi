@@ -1,3 +1,4 @@
+import { apiUrl } from "../lib/api-path";
 export const $ = <T extends HTMLElement = HTMLElement>(
   selector: string,
   root: ParentNode = document,
@@ -48,7 +49,7 @@ export async function requestJson<T>(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30_000);
   try {
-    const response = await fetch(`/api/v1/${path}`, {
+    const response = await fetch(apiUrl(path), {
       ...options,
       signal: controller.signal,
       credentials: "same-origin",

@@ -49,6 +49,7 @@ export interface Session {
   email: string;
 }
 export interface AuthenticatedSession extends Session {
+  session_expires_at: number;
   store_title: string;
   store_slug: string;
   store_setup_complete: number;

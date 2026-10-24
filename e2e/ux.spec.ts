@@ -1,9 +1,4 @@
-import {
-  expect,
-  test,
-  type Page,
-  type APIRequestContext,
-} from "@playwright/test";
+import { expect, test, type Page, type APIRequestContext } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 import { pauseQueue } from "./ui-helpers";
 const origin = "http://localhost:4321";
@@ -97,7 +92,7 @@ test("cadastro leva ao roteiro, salva o visual e mantém o catálogo exclusivo",
     .click();
   await expect(page).toHaveURL(/painel\/catalogo$/);
   await expect(page.locator(".catalog-card")).toHaveCount(0);
-  const store = await (await page.request.get("/api/v1/painel/loja")).json();
+  const store = await (await page.request.get("/painel/api/v1/loja")).json();
   expect(store).toMatchObject({
     title: "Doces da Vila",
     palette: "ocean",
@@ -138,7 +133,7 @@ test("catálogo compacto, pop-ups com teclado e combos em seção própria", asy
   await audit(page);
 });
 async function prepare(request: APIRequestContext) {
-  const result = await request.post("/api/v1/register", {
+  const result = await request.post("/painel/api/v1/register", {
     headers: { origin },
     data: {
       title: "Fila exclusiva",
@@ -148,12 +143,12 @@ async function prepare(request: APIRequestContext) {
     },
   });
   expect(result.status()).toBe(201);
-  const session = await (await request.get("/api/v1/session")).json();
+  const session = await (await request.get("/painel/api/v1/session")).json();
   const headers = { origin, "x-csrf-token": session.csrfToken };
-  const store = await (await request.get("/api/v1/painel/loja")).json();
+  const store = await (await request.get("/painel/api/v1/loja")).json();
   expect(
     (
-      await request.patch("/api/v1/painel/loja", {
+      await request.patch("/painel/api/v1/loja", {
         headers,
         data: {
           ...store,
@@ -166,7 +161,7 @@ async function prepare(request: APIRequestContext) {
     ).ok(),
   ).toBe(true);
   const product = await (
-    await request.post("/api/v1/painel/produtos", {
+    await request.post("/painel/api/v1/produtos", {
       headers,
       data: {
         title: "Doce fictício",
@@ -253,21 +248,21 @@ test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõ
   expect(
     (
       await (
-        await page.request.get(`/api/v1/painel/pedidos/${first.id}`)
+        await page.request.get(`/painel/api/v1/pedidos/${first.id}`)
       ).json()
     ).status,
   ).toBe("ACCEPTED");
   expect(
     (
       await (
-        await page.request.get(`/api/v1/painel/pedidos/${second.id}`)
+        await page.request.get(`/painel/api/v1/pedidos/${second.id}`)
       ).json()
     ).status,
   ).toBe("REJECTED");
   expect(
     (
       await (
-        await page.request.get(`/api/v1/painel/pedidos/${quote.id}`)
+        await page.request.get(`/painel/api/v1/pedidos/${quote.id}`)
       ).json()
     ).status,
   ).toBe("QUOTE_PROPOSED");
@@ -299,15 +294,17 @@ test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõ
   expect(
     (
       await (
-        await page.request.get(`/api/v1/painel/pedidos/${fourth.id}`)
+        await page.request.get(`/painel/api/v1/pedidos/${fourth.id}`)
       ).json()
     ).status,
   ).toBe("PENDING");
   await page.locator("#open-order-queue").click();
   await expect(page.locator("#queue-title")).toContainText(fourth.protocol);
-  const session = await (await page.request.get("/api/v1/session")).json();
+  const session = await (
+    await page.request.get("/painel/api/v1/session")
+  ).json();
   const otherDecision = await page.request.post(
-    `/api/v1/painel/pedidos/${fourth.id}/transicoes`,
+    `/painel/api/v1/pedidos/${fourth.id}/transicoes`,
     {
       headers: { origin, "x-csrf-token": session.csrfToken },
       data: { version: 0, status: "ACCEPTED" },

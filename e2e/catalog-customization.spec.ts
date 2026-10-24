@@ -1,5 +1,5 @@
 import { pauseQueue, openEditor } from "./ui-helpers";
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import jpeg from "jpeg-js";
 import { verifyGlobalTheme } from "./store-theme";
 

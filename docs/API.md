@@ -1,6 +1,6 @@
 # API P1
 
-Prefixo `/api/v1`. Respostas JSON, `Cache-Control: no-store`. No modo local, os endpoints exigem host loopback e `APP_MODE=local-demo`. Em homologação, exigem `APP_MODE=staging-demo`, HTTPS, o host autorizado e um JWT Cloudflare Access válido, conforme o [guia de hospedagem](HOSPEDAGEM_CLOUDFLARE.md). Mutações exigem `Origin` igual à origem da requisição; bodies em JSON. Rotas de painel usam a loja da sessão, sem parâmetro de tenant confiado ao cliente.
+Prefixo público `/api/v1`. No navegador, autenticação e operações do lojista usam `/painel/api/v1` (por exemplo, `/painel/api/v1/login` e `/painel/api/v1/pedidos`), para limitar o cookie empresarial ao mesmo caminho. A tabela abaixo mantém os caminhos relativos da API original, ainda disponíveis para clientes HTTP que enviem credenciais explicitamente. Respostas JSON, `Cache-Control: no-store`. No modo local, os endpoints exigem host loopback e `APP_MODE=local-demo`. Em homologação, exigem `APP_MODE=staging-demo`, HTTPS, o host autorizado e um JWT Cloudflare Access válido, conforme o [guia de hospedagem](HOSPEDAGEM_CLOUDFLARE.md). Mutações exigem `Origin` igual à origem da requisição; bodies em JSON. Rotas de painel usam a loja da sessão, sem parâmetro de tenant confiado ao cliente.
 
 | Método    | Caminho                                   | Autorização/função                                     |
 | --------- | ----------------------------------------- | ------------------------------------------------------ |
@@ -66,3 +66,11 @@ Token e nonce de comprador são específicos ao pedido. Eles não autenticam no 
 `GET /painel/visao-geral` inclui `queue`, até 50 pedidos que aguardam decisão, mais antigos primeiro (desempate pela ordem de inserção). A fila tem índice parcial próprio e é independente dos 100 pedidos recentes. O próximo lote aparece à medida que decisões são tomadas. Os itens e o endereço são buscados apenas para o pedido em foco na rota autenticada já existente. `QUOTE_PROPOSED` aguarda o comprador e volta à fila como `QUOTE_ACCEPTED`.
 
 `PATCH /painel/loja` aceita `finishSetup: true`, somente para o proprietário e com a mesma versão otimista da configuração; conclui o assistente sem mudar o escopo ou as credenciais. A migração 0007 considera lojas anteriores já configuradas.
+
+## Sessão e encapsulamento no navegador
+
+O cookie empresarial fica em `Path=/painel`, host-only, HttpOnly e SameSite=Strict. Em HTTPS usa `__Secure-doofi_panel` e Secure. Sessões legadas válidas são migradas sem estender a validade. Cookies duplicados ou um cookie novo inválido são recusados sem escolher outra empresa. A interface mantém `credentials: same-origin` para preservar o cookie separado do Cloudflare Access nas chamadas de convidados.
+
+O pedido pendente no checkout tem corpo e itens imutáveis para reenvio idempotente, guardados por até uma hora na aba e com escopo da loja. O navegador remove contatos/endereço do rascunho assim que recebe uma confirmação; em caso de falha ao abrir a próxima página, recupera apenas a referência de acompanhamento. Descartar dados do checkout não cancela pedidos existentes. Nenhuma identidade de cliente é criada.
+
+Veja os casos exercitados e os limites na [auditoria de segurança do cliente](AUDITORIA_SEGURANCA_CLIENTE.md).

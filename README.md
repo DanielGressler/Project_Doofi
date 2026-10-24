@@ -14,6 +14,8 @@ O checkout solicita nome, telefone e e-mail fictícios, além do endereço para 
 
 A interface agora separa **cardápio → carrinho → dados e entrega → acompanhamento**. O catálogo usa cartões recolhidos e pop-ups para novos produtos/combos; a fila de pedidos destaca uma decisão de cada vez. Novas lojas fictícias têm cadastro simples e um assistente de configuração. Consulte o [guia da interface e atualização](docs/ATUALIZACAO_UX.md).
 
+A [auditoria de segurança do cliente](docs/AUDITORIA_SEGURANCA_CLIENTE.md) cobre cookies restritos ao painel, rascunhos com expiração e recuperação sem mistura de dados, além de SQL injection, XSS, CSRF e isolamento empresarial. O cliente continua sem login. Execute `npm ci` ao atualizar esta versão: o lockfile inclui correções transitivas de segurança.
+
 ## Executar
 
 Requisitos: Node 24 (ou >=22.22), npm e Linux/macOS/Windows compatível com workerd. As versões exatas estão em `package-lock.json`.

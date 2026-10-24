@@ -1,5 +1,5 @@
 import { pauseQueue } from "./ui-helpers";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("cliente informa dados de envio após o carrinho e a loja os consulta com o login atual", async ({
   page,
