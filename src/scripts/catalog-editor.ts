@@ -47,6 +47,9 @@ document.querySelectorAll<HTMLFormElement>(".product-form").forEach((form) => {
         id ? "PATCH" : "POST",
         csrf,
       );
+      document.dispatchEvent(
+        new CustomEvent("catalog:saved", { detail: { combo } }),
+      );
       location.reload();
     } catch (e) {
       output.textContent = (e as Error).message;

@@ -19,6 +19,7 @@ test("som bloqueado pelo navegador mantém o atendimento disponível", async ({
   await page.getByRole("button", { name: "Entrar no painel" }).click();
   await expect(page).toHaveURL(/painel\/pedidos$/);
   await pauseQueue(page);
+  await page.getByText("Preferências dos avisos", { exact: true }).click();
   await page.locator("#enable-order-alerts").click();
   await expect(page.locator("#alert-status")).toContainText(
     "Os avisos visuais continuam funcionando",
@@ -28,7 +29,7 @@ test("som bloqueado pelo navegador mantém o atendimento disponível", async ({
     "false",
   );
   await expect(page.locator("#open-order-queue")).toBeEnabled();
-  await page.locator("#refresh-orders").click();
+  await expect(page.locator("#refresh-orders")).toHaveCount(0);
   await expect(page.locator("#feedback")).not.toHaveClass(/error/);
   expect(errors).toEqual([]);
 });

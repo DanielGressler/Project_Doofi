@@ -1,15 +1,23 @@
 ---
 import Layout from "./Layout.astro";
 import Icon from "../components/Icon.astro";
+import { env } from "cloudflare:workers";
+import type { StoreAppearance } from "../lib/types";
 interface Props {
   title: string;
   active: string;
+  appearance?: StoreAppearance;
 }
 const { title, active } = Astro.props;
 const session = Astro.locals.session!;
+const appearance =
+  Astro.props.appearance ??
+  (await env.DB.prepare("SELECT palette,font,layout FROM stores WHERE id=?")
+    .bind(session.store_id)
+    .first<StoreAppearance>())!;
 ---
 
-<Layout title={title} panel>
+<Layout title={title} panel appearance={appearance}>
   <div
     class="wrap panel-layout"
     id="panel-app"

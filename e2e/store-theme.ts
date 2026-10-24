@@ -10,6 +10,8 @@ const presets = [
     heading: "Georgia",
     hero: "rgb(239, 224, 236)",
     accent: "rgb(121, 69, 110)",
+    dark: "rgb(96, 52, 86)",
+    soft: "rgb(243, 231, 240)",
     radius: "3px",
   },
   {
@@ -20,6 +22,8 @@ const presets = [
     heading: "DM Sans Variable",
     hero: "rgb(220, 236, 245)",
     accent: "rgb(35, 99, 138)",
+    dark: "rgb(25, 77, 110)",
+    soft: "rgb(230, 241, 247)",
     radius: "6px",
   },
   {
@@ -30,6 +34,8 @@ const presets = [
     heading: "Fraunces Variable",
     hero: "rgb(225, 235, 218)",
     accent: "rgb(64, 104, 57)",
+    dark: "rgb(49, 82, 44)",
+    soft: "rgb(234, 241, 227)",
     radius: "14px",
   },
 ];
@@ -54,7 +60,8 @@ export async function verifyGlobalTheme(page: Page, browser: Browser) {
       ),
     );
   const shopper = await browser.newContext(),
-    shop = await shopper.newPage();
+    shop = await shopper.newPage(),
+    management = await page.context().newPage();
   try {
     for (const preset of presets) {
       await page
@@ -71,10 +78,36 @@ export async function verifyGlobalTheme(page: Page, browser: Browser) {
         preset.layout,
       );
       await family(page, "#appearance-preview h3", preset.heading);
+      await expect(page.locator(".panel-nav a.active")).toHaveCSS(
+        "color",
+        preset.dark,
+      );
       await page.getByRole("button", { name: "Salvar configurações" }).click();
       await expect(page.locator("#feedback")).toContainText(
         "Configurações salvas",
       );
+      for (const path of [
+        "/painel/catalogo",
+        "/painel/pedidos",
+        "/painel/loja",
+      ]) {
+        await management.goto(path);
+        await expect(management.locator("html")).toHaveClass(/store-theme/);
+        await expect(management.locator(".panel-nav a.active")).toHaveCSS(
+          "color",
+          preset.dark,
+        );
+        if (path.endsWith("catalogo")) {
+          await expect(management.locator(".catalog-card").first()).toHaveCSS(
+            "background-color",
+            preset.soft,
+          );
+          await expect(management.locator(".catalog-toggle").first()).toHaveCSS(
+            "background-color",
+            preset.accent,
+          );
+        }
+      }
       for (const width of [1440, 320]) {
         await shop.setViewportSize({ width, height: 1000 });
         await shop.goto("/loja/casa-do-forno");
@@ -173,7 +206,7 @@ export async function verifyGlobalTheme(page: Page, browser: Browser) {
       "background-color",
       "rgb(64, 104, 57)",
     );
-    await expect(page.locator("html")).not.toHaveClass(/store-theme/);
+    await expect(page.locator("html")).toHaveClass(/store-theme/);
   } finally {
     for (const name of ["palette", "font", "layout"])
       await page.locator(`[name="${name}"]`).selectOption(initial[name]);
@@ -181,6 +214,7 @@ export async function verifyGlobalTheme(page: Page, browser: Browser) {
     await expect(page.locator("#feedback")).toContainText(
       "Configurações salvas",
     );
+    await management.close();
     await shopper.close();
   }
 }

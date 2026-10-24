@@ -1,17 +1,28 @@
 ---
+import type { GuideScene } from "../lib/guide-scenes";
 interface Props {
   id: string;
-  scenes: { title: string; text: string }[];
+  scenes: GuideScene[];
   controls?: boolean;
   chapter?: number;
   skip?: boolean;
+  floating?: boolean;
+  finishLabel?: string;
 }
-const { id, scenes, controls = false, chapter = 0, skip = false } = Astro.props;
+const {
+  id,
+  scenes,
+  controls = false,
+  chapter = 0,
+  skip = false,
+  floating = false,
+  finishLabel = "Concluir tutorial ✓",
+} = Astro.props;
 const initial = Math.min(scenes.length - 1, Math.max(0, chapter));
 ---
 
 <section
-  class="novel-guide"
+  class:list={["novel-guide", { "floating-guide": floating }]}
   id={id}
   data-novel-guide
   data-scenes={JSON.stringify(scenes)}
@@ -28,8 +39,14 @@ const initial = Math.min(scenes.length - 1, Math.max(0, chapter));
       Pausar animações
     </button>
     {skip && (
-      <button type="button" class="button button-quiet" data-guide-skip>
-        Pular tutorial
+      <button
+        type="button"
+        class="guide-close"
+        data-guide-skip
+        aria-label="Pular tutorial"
+        title="Pular tutorial e configurar depois"
+      >
+        <span aria-hidden="true">×</span>
       </button>
     )}
   </div>
@@ -56,7 +73,7 @@ const initial = Math.min(scenes.length - 1, Math.max(0, chapter));
     <div class="novel-dialogue">
       <span class="novel-speaker">DOFI · SEU GUIA</span>
       <p class="small muted" data-guide-chapter>
-        Capítulo {initial + 1} de {scenes.length}
+        Passo {initial + 1} de {scenes.length}
       </p>
       <h2 data-guide-title tabindex="-1">
         {scenes[initial].title}
@@ -92,7 +109,7 @@ const initial = Math.min(scenes.length - 1, Math.max(0, chapter));
         data-guide-finish
         hidden={initial !== scenes.length - 1}
       >
-        Concluir tutorial ✓
+        {finishLabel}
       </button>
     </div>
   )}

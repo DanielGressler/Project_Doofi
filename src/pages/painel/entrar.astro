@@ -33,6 +33,7 @@ import Layout from "../../layouts/Layout.astro";
         <form id="register-form" method="post" hidden>
           <NovelGuide
             id="register-guide"
+            skip
             scenes={[
               {
                 title: "Primeiro, vamos criar seu acesso de teste",
@@ -86,10 +87,6 @@ import Layout from "../../layouts/Layout.astro";
               autocomplete="new-password"
             />
             <small>Use uma senha inventada com pelo menos 8 caracteres.</small>
-          </label>
-          <label class="checkbox">
-            <input type="checkbox" name="skipTutorial" />
-            <span>Pular tutorial e configurar a loja depois</span>
           </label>
           <label class="checkbox">
             <input type="checkbox" name="syntheticData" required />
@@ -162,13 +159,13 @@ import Layout from "../../layouts/Layout.astro";
   }
   $("#show-login").onclick = () => showRegister(false);
   $("#show-register").onclick = () => showRegister(true);
-  $<HTMLInputElement>('[name="skipTutorial"]', registerForm).onchange = (
-    event,
-  ) => {
-    const skip = (event.currentTarget as HTMLInputElement).checked;
-    $("#register-guide").hidden = skip;
+  let skipTutorial = false;
+  $("#register-guide [data-guide-skip]").onclick = () => {
+    skipTutorial = true;
+    $("#register-guide").hidden = true;
     $<HTMLButtonElement>('button[type="submit"]', registerForm).textContent =
-      skip ? "Criar loja sem tutorial →" : "Criar loja e personalizar →";
+      "Criar loja sem tutorial →";
+    $<HTMLInputElement>('[name="title"]', registerForm).focus();
   };
   registerForm.onsubmit = async (event) => {
     event.preventDefault();
@@ -179,7 +176,7 @@ import Layout from "../../layouts/Layout.astro";
       const result = await api<{ next: string }>("register", {
         ...Object.fromEntries(fields),
         syntheticData: fields.get("syntheticData") === "on",
-        skipTutorial: fields.get("skipTutorial") === "on",
+        skipTutorial,
       });
       location.assign(result.next);
     } catch (error) {

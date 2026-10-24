@@ -94,6 +94,7 @@ const canRefresh = () =>
   !$("#order-list").contains(document.activeElement);
 const poller = createPoller(load, {
   enabled: canRefresh,
+  interval: 5_000,
   onError: (error) => feedback((error as Error).message, true),
 });
 const refresh = () => {
@@ -102,7 +103,6 @@ const refresh = () => {
 };
 const orderQueue = createOrderQueue(refresh);
 const orderAlerts = createOrderAlerts();
-$("#refresh-orders").onclick = () => void refresh();
 $("#pause-order-updates").onclick = (event) => {
   automaticUpdates = !automaticUpdates;
   const button = event.currentTarget as HTMLButtonElement;
@@ -113,11 +113,15 @@ $("#pause-order-updates").onclick = (event) => {
   if (automaticUpdates) void refresh();
   else
     feedback(
-      "Atualização automática pausada. Use Atualizar para consultar sem reativá-la.",
+      "Atualização automática pausada. Retome quando quiser receber novos avisos.",
     );
 };
 $("#status-filter").onchange = render;
 void refresh();
 document.addEventListener("visibilitychange", () => {
   if (canRefresh()) void poller.refresh();
+});
+
+window.addEventListener("online", () => {
+  if (canRefresh()) void refresh();
 });

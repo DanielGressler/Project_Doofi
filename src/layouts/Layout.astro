@@ -20,7 +20,7 @@ const colors = palettes[appearance?.palette ?? "terracotta"];
 <html
   lang="pt-BR"
   data-doofi-epoch={Astro.locals.browserEpoch}
-  class:list={{ "store-theme": !!appearance }}
+  class:list={{ "store-theme": !!appearance, "panel-theme": panel }}
   data-layout={appearance?.layout ?? undefined}
   style={appearance ? appearanceStyles(appearance) : undefined}
 >

@@ -13,6 +13,7 @@ export function createOrderQueue(refresh: () => Promise<void>) {
   const dialog = $<HTMLDialogElement>("#order-queue");
   let entries: QueueEntry[] = [];
   let current: Detail | null = null;
+  let priority: QueueEntry | null = null;
   let loadingId: string | null = null;
   let sequence = 0;
   let paused = false;
@@ -20,18 +21,17 @@ export function createOrderQueue(refresh: () => Promise<void>) {
   function lock(disabled: boolean) {
     dialog
       .querySelectorAll<HTMLButtonElement>(
-        "#queue-accept, #queue-reject, #queue-propose, #queue-reload",
+        "#queue-accept, #queue-reject, #queue-propose",
       )
       .forEach((button) => (button.disabled = disabled));
   }
   function count() {
     $("#open-order-queue").textContent =
-      `Atender fila (${entries.length}${entries.length === 50 ? "+" : ""})`;
+      `Atender fila (${entries.length}${entries.length >= 50 ? "+" : ""})`;
     $("#queue-count").textContent =
       entries.length > 1
         ? `${entries.length - 1} pedido(s) atrás deste. Novas chegadas aguardam sua decisão.`
-        : "Este é o primeiro pedido. Aceite, recuse ou pause para atender depois.";
-    $("#queue-stack").classList.toggle("has-next", entries.length > 1);
+        : "Este pedido mantém a prioridade até receber uma resposta.";
   }
   async function focusNext(force = false) {
     if (paused || writing || document.hidden) return;
@@ -46,22 +46,25 @@ export function createOrderQueue(refresh: () => Promise<void>) {
     const first = entries[0];
     if (!first) {
       current = null;
+      priority = null;
       loadingId = null;
       sequence++;
       if (dialog.open) dialog.close("empty");
       return;
     }
-    if (
-      !force &&
-      (loadingId === first.id ||
-        (current?.id === first.id && current.version === first.version))
-    )
+    // A background reconciliation must not overlap an already pending detail read.
+    if (loadingId === first.id) return;
+    if (!force && current?.id === first.id && current.version === first.version)
       return;
+    const changedOrder = priority?.id !== first.id;
+    const wasOpen = dialog.open;
+    priority = first;
     const serial = ++sequence;
     current = null;
     loadingId = first.id;
     lock(true);
-    $("#queue-title").textContent = `Pedido ${first.protocol}`;
+    $("#queue-title").textContent =
+      first.status === "QUOTE_PENDING" ? "Combinar entrega" : "Novo pedido";
     $("#queue-customer").textContent = "Carregando informações…";
     $("#queue-location").textContent = "";
     $("#queue-items").replaceChildren();
@@ -72,7 +75,7 @@ export function createOrderQueue(refresh: () => Promise<void>) {
     $("#queue-quote").hidden = true;
     $("#queue-propose").hidden = true;
     $("#queue-accept").hidden = true;
-    $<HTMLInputElement>("#queue-reason").value = "";
+    if (changedOrder) $<HTMLInputElement>("#queue-reason").value = "";
     $("#queue-reason").removeAttribute("aria-invalid");
     $("#queue-reason-error").textContent = "";
     feedback("", false, "#queue-feedback");
@@ -82,12 +85,14 @@ export function createOrderQueue(refresh: () => Promise<void>) {
       if (serial !== sequence || paused) return;
       if (!eligible(order.status)) {
         entries = entries.filter((entry) => entry.id !== order.id);
+        priority = null;
         loadingId = null;
         count();
         await focusNext();
         return;
       }
       current = order;
+      priority = order;
       $("#queue-customer").textContent = order.customer_name;
       $("#queue-location").textContent =
         order.fulfillment === "PICKUP"
@@ -112,7 +117,7 @@ export function createOrderQueue(refresh: () => Promise<void>) {
       $("#queue-propose").hidden = order.status !== "QUOTE_PENDING";
       $<HTMLAnchorElement>("#queue-detail").href =
         `/painel/pedidos/${order.id}`;
-      $("#queue-title").focus();
+      if (changedOrder || !wasOpen) $("#queue-title").focus();
     } catch (error) {
       if (serial === sequence)
         feedback((error as Error).message, true, "#queue-feedback");
@@ -163,16 +168,19 @@ export function createOrderQueue(refresh: () => Promise<void>) {
       );
       entries = entries.filter((entry) => entry.id !== order.id);
       current = null;
+      priority = null;
       $<HTMLFormElement>("#queue-quote").reset();
       feedback("", false, "#queue-feedback");
       // Refresh server state before enabling the next decision; never retry a write automatically.
       await refresh();
     } catch (error) {
       feedback(
-        `${(error as Error).message} Atualize o pedido em foco antes de tentar novamente.`,
+        `${(error as Error).message} Estamos conferindo o estado do pedido automaticamente; sua decisão não será reenviada.`,
         true,
         "#queue-feedback",
       );
+      current = null;
+      await refresh();
     } finally {
       writing = false;
       lock(false);
@@ -192,7 +200,6 @@ export function createOrderQueue(refresh: () => Promise<void>) {
     event.preventDefault();
     void decide("QUOTE");
   };
-  $("#queue-reload").onclick = () => void focusNext(true);
   function pause() {
     if (writing) return;
     paused = true;
@@ -210,21 +217,20 @@ export function createOrderQueue(refresh: () => Promise<void>) {
     if (!entries.length)
       feedback("Nenhum pedido aguardando decisão neste momento.");
     else {
-      current = null;
       void focusNext(true);
     }
   };
   return {
     update(queue: QueueEntry[]) {
-      // A previously quoted order may return with an older creation date.
-      // Keep the active decision in front even when the server's oldest entry changes.
-      const activeId = current?.id ?? loadingId;
-      const active = queue.find((entry) => entry.id === activeId);
-      entries = active
-        ? [active, ...queue.filter((entry) => entry.id !== activeId)]
+      // The focused order survives minimization, new arrivals and a failed decision.
+      // If it leaves the paginated queue, read its detail before releasing priority.
+      const active = queue.find((entry) => entry.id === priority?.id);
+      const pinned = active ?? priority;
+      entries = pinned
+        ? [pinned, ...queue.filter((entry) => entry.id !== pinned.id)]
         : queue;
       count();
-      void focusNext();
+      void focusNext(!!priority && !active);
     },
   };
 }

@@ -5,7 +5,10 @@ document
       const dialog = document.getElementById(
         button.dataset.openDialog!,
       ) as HTMLDialogElement;
-      dialog.showModal();
+      if (!dialog.open) dialog.showModal();
+      document.dispatchEvent(
+        new CustomEvent("catalog:dialog-open", { detail: dialog.id }),
+      );
     });
   });
 document
