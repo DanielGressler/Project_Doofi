@@ -46,6 +46,13 @@ const row = (id: string) =>
   env.DB.prepare("SELECT * FROM orders WHERE id=?")
     .bind(id)
     .first<{ version: number; status: string; total: number | null }>();
+async function receive(token: string) {
+  const current = await publicStatus(env.DB, token);
+  return customerAction(env.DB, token, "confirm-receipt", {
+    version: current.version,
+    nonce: current.actionNonce,
+  });
+}
 
 describe("Checkout íntegro", () => {
   it("10 reenvios concorrentes criam um pedido, dois itens e um evento", async () => {
@@ -210,8 +217,17 @@ describe("Jornadas e isolamento", () => {
         version: (await row(order.id))!.version,
         status: "READY",
       });
-      const ready = await publicStatus(env.DB, order.token);
+      let ready = await publicStatus(env.DB, order.token);
       expect(ready.status).toBe("READY");
+      await expect(
+        transition(env.DB, a, order.id, {
+          version: ready.version,
+          status: "COMPLETED",
+          received_at: 1,
+        }),
+      ).rejects.toMatchObject({ code: "RECEIPT_REQUIRED" });
+      await receive(order.token);
+      ready = await publicStatus(env.DB, order.token);
       const results = await Promise.allSettled(
         Array.from({ length: 2 }, () =>
           transition(env.DB, a, order.id, {
@@ -236,13 +252,14 @@ describe("Jornadas e isolamento", () => {
     const order = await make();
     await transition(env.DB, a, order.id, { version: 0, status: "ACCEPTED" });
     await transition(env.DB, a, order.id, { version: 1, status: "READY" });
+    await receive(order.token);
     await env.DB.exec(
       "CREATE TRIGGER reject_delivery_confirmation BEFORE INSERT ON audit_events WHEN NEW.action='ORDER_TRANSITION' AND json_extract(NEW.metadata,'$.status')='COMPLETED' BEGIN SELECT RAISE(ABORT,'test confirmation audit failure'); END;",
     );
     await expect(
-      transition(env.DB, a, order.id, { version: 2, status: "COMPLETED" }),
+      transition(env.DB, a, order.id, { version: 3, status: "COMPLETED" }),
     ).rejects.toThrow();
-    expect(await row(order.id)).toMatchObject({ status: "READY", version: 2 });
+    expect(await row(order.id)).toMatchObject({ status: "READY", version: 3 });
     expect(
       (await publicStatus(env.DB, order.token)).events.some(
         (event) => event.status === "COMPLETED",
@@ -252,11 +269,13 @@ describe("Jornadas e isolamento", () => {
 
   it("J1: retirada percorre aceite, preparo, pronto e conclusão", async () => {
     const o = await make();
-    for (const status of ["ACCEPTED", "PREPARING", "READY", "COMPLETED"])
+    for (const status of ["ACCEPTED", "PREPARING", "READY", "COMPLETED"]) {
+      if (status === "COMPLETED") await receive(o.token);
       await transition(env.DB, a, o.id, {
         version: (await row(o.id))!.version,
         status,
       });
+    }
     expect((await publicStatus(env.DB, o.token)).status).toBe("COMPLETED");
     await expect(
       transition(env.DB, a, o.id, { version: 4, status: "ACCEPTED" }),
@@ -276,7 +295,8 @@ describe("Jornadas e isolamento", () => {
       version: 2,
       status: "OUT_FOR_DELIVERY",
     });
-    await transition(env.DB, a, o.id, { version: 3, status: "COMPLETED" });
+    await receive(o.token);
+    await transition(env.DB, a, o.id, { version: 4, status: "COMPLETED" });
   });
   it("J3: cotação exige comprador e lojista antes de simular Pix", async () => {
     const o = await make({

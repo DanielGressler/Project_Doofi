@@ -104,6 +104,23 @@ test("J1 · pedido com retirada, pagamento simulado e atendimento completo", asy
     "conferência do lojista",
   );
   await transition(panel, "Pedido pronto", "Pedido pronto");
+  await page
+    .getByRole("button", { name: "Atualizar pedido", exact: true })
+    .click();
+  await page
+    .getByRole("link", { name: "Meus pedidos", exact: true })
+    .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Confirmar recebimento", exact: true })
+    .click();
+  await expect(page.locator(".receipt-confirmation")).toContainText(
+    "Recebimento confirmado",
+  );
+  await page
+    .getByRole("link", { name: "Acompanhar pedido", exact: true })
+    .click();
+  await panel.getByRole("button", { name: "Atualizar dados" }).click();
   await panel
     .getByRole("button", { name: "Entregar pedido", exact: true })
     .click();
@@ -132,6 +149,16 @@ test("J2 · entrega fixa, região e valor final", async ({ page, browser }) => {
   await openOrder(panel, protocol);
   await transition(panel, "Aceitar pedido", "Pedido aceito");
   await transition(panel, "Pedido pronto", "Pedido pronto");
+  await page
+    .getByRole("button", { name: "Atualizar pedido", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Confirmar recebimento", exact: true })
+    .click();
+  await expect(page.locator("#tracking-receipt")).toContainText(
+    "Recebimento confirmado",
+  );
+  await panel.getByRole("button", { name: "Atualizar dados" }).click();
   await panel
     .getByRole("button", { name: "Entregar pedido", exact: true })
     .click();

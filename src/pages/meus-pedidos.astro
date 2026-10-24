@@ -1,0 +1,42 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Meus pedidos">
+  <div class="wrap page-wrap" id="customer-orders-app">
+    <div class="page-heading">
+      <div>
+        <div class="eyebrow">SEUS PEDIDOS DE TESTE</div>
+        <h1>
+          Meus pedidos<span class="accent">.</span>
+        </h1>
+        <p>
+          Acompanhe e confirme o recebimento dos pedidos acessados nesta aba.
+        </p>
+      </div>
+      <button
+        type="button"
+        class="button button-quiet"
+        id="refresh-customer-orders"
+      >
+        Atualizar meus pedidos
+      </button>
+    </div>
+    <p class="small muted">
+      A lista fica somente nesta aba, sem login de cliente. Guarde o link de
+      acompanhamento para abrir o pedido em outro momento ou dispositivo.
+    </p>
+    <p id="customer-orders-empty" class="notice" hidden>
+      Nenhum pedido salvo nesta aba. Faça um pedido ou abra seu link de
+      acompanhamento.
+    </p>
+    <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
+    <div id="customer-orders-list" class="customer-orders-list"></div>
+    <a class="button button-quiet" href="/lojas">
+      Explorar lojas
+    </a>
+  </div>
+</Layout>
+<script>
+  import "../scripts/customer-orders";
+</script>

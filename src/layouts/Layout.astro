@@ -71,10 +71,17 @@ const colors = palettes[appearance?.palette ?? "terracotta"];
               Lojas cadastradas
             </a>
           ) : (
-            <a class="nav-link" href="/painel/entrar">
-              <Icon name="user" />
-              <span>Área do lojista</span>
-            </a>
+            <>
+              <a class="nav-link" href="/meus-pedidos">
+                Meus pedidos
+              </a>
+              {!slug && (
+                <a class="nav-link" href="/painel/entrar">
+                  <Icon name="user" />
+                  <span>Área do lojista</span>
+                </a>
+              )}
+            </>
           )}
           {slug && (
             <a
@@ -115,11 +122,16 @@ const colors = palettes[appearance?.palette ?? "terracotta"];
         ) : slug ? (
           <>
             <a href={`/loja/${slug}`}>Loja</a>
+            <a href="/meus-pedidos">Meus pedidos</a>
             <a href={`/loja/${slug}/carrinho`}>Carrinho</a>
             <a href={`/loja/${slug}/checkout`}>Dados de envio</a>
+            <a href="/painel/entrar">Área do lojista</a>
           </>
         ) : (
-          <a href="/">Escolher experiência</a>
+          <>
+            <a href="/">Escolher experiência</a>
+            {!entry && <a href="/meus-pedidos">Meus pedidos</a>}
+          </>
         )}
       </nav>
       <div>

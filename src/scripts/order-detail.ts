@@ -18,7 +18,13 @@ import {
 
 type State = Pick<
   Order,
-  "status" | "version" | "fulfillment" | "subtotal" | "delivery_fee" | "total"
+  | "status"
+  | "version"
+  | "fulfillment"
+  | "subtotal"
+  | "delivery_fee"
+  | "total"
+  | "received_at"
 > & { payment: Payment; quote: Quote | null };
 type AuditEvent = { action: string; metadata: string; created_at: number };
 const root = $("#order-detail");
@@ -50,7 +56,10 @@ if (root) {
         "#fulfill-order,#accept-order,#reject-order,#cancel-order,#confirm-payment,#confirm-delivery,#close-delivery-confirmation,#quote-form button,#quote-form input,#transition-reason",
       )
       .forEach((button) => {
-        button.disabled = disabled;
+        button.disabled =
+          disabled ||
+          (button.id === "fulfill-order" &&
+            !!fulfillmentAction(state)?.blocked);
       });
     root.setAttribute("aria-busy", String(disabled));
     $("#reload-detail").setAttribute("aria-busy", String(writing));
@@ -63,7 +72,7 @@ if (root) {
     $("#detail-subtotal").textContent = money(state.subtotal);
     $("#detail-fee").textContent = money(state.delivery_fee);
     $("#detail-total").textContent = money(state.total);
-    const action = fulfillmentAction(state.status);
+    const action = fulfillmentAction(state);
     const primary = $("#fulfill-order");
     primary.hidden = !action;
     if (action) primary.textContent = action.label;
@@ -72,8 +81,14 @@ if (root) {
     )
       ? "Ao terminar o preparo, marque o pedido como pronto."
       : ["READY", "OUT_FOR_DELIVERY"].includes(state.status)
-        ? "Ao entregar ao cliente, abra a confirmação manual de entrega."
+        ? state.received_at == null
+          ? "Aguardando o cliente confirmar o recebimento em Meus pedidos. A conclusão será liberada depois dessa confirmação."
+          : "O cliente confirmou o recebimento. Você já pode concluir a entrega."
         : "";
+    $("#customer-receipt-state").textContent =
+      state.received_at != null
+        ? `Recebimento confirmado pelo cliente em ${formatDate(state.received_at)}.`
+        : "Recebimento ainda não confirmado pelo cliente.";
     const allowed = allowedOrderTransitions(state);
     $("#accept-order").hidden = !allowed.includes("ACCEPTED");
     $("#reject-order").hidden = !allowed.includes("REJECTED");
@@ -137,6 +152,7 @@ if (root) {
           PAYMENT_DECLARED: "Pagamento declarado na simulação",
           PAYMENT_LATE: "Declaração após cancelamento",
           PAYMENT_SIMULATED_CONFIRMED: "Conferência simulada pelo lojista",
+          CUSTOMER_RECEIPT_CONFIRMED: "Recebimento confirmado pelo cliente",
         };
         const list = $("#audit-list");
         list.replaceChildren();
@@ -296,8 +312,8 @@ if (root) {
   }
   $("#fulfill-order").onclick = () => {
     if (writing || !synchronized) return;
-    const action = fulfillmentAction(state.status);
-    if (!action) return;
+    const action = fulfillmentAction(state);
+    if (!action || action.blocked) return;
     if (action.confirmation) {
       confirmationVersion = state.version;
       feedback("", false, "#delivery-confirmation-error");

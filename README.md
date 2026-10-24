@@ -20,6 +20,8 @@ A [revisão das notificações, paleta e guia](docs/NOTIFICACOES_E_GUIA.md) unif
 
 O atendimento usa a barra **Pedido pronto → Entregar pedido → Confirmar entrega**, sem recarregar a página. O histórico começa recolhido e carrega sob demanda. Apenas confirmações de ações geram avisos pequenos que desaparecem após 20 segundos; erros continuam visíveis. Veja o [fluxo e a auditoria de preparo/entrega](docs/AUDITORIA_PREPARO_ENTREGA.md).
 
+O cliente agora confirma o recebimento em **Meus pedidos** ou no acompanhamento individual. O lojista só consegue concluir depois dessa confirmação, com bloqueio também no servidor. A lista usa referências desta aba, sem login ou contatos armazenados. Veja o [guia de recebimento](docs/RECEBIMENTO_CLIENTE.md); não exige migração nem reset.
+
 ## Executar
 
 Requisitos: Node 24 (ou >=22.22), npm e Linux/macOS/Windows compatível com workerd. As versões exatas estão em `package-lock.json`.
@@ -47,7 +49,7 @@ O seed usa `INSERT OR IGNORE`: pode ser repetido sem apagar pedidos ou sobrescre
 
 1. Na loja A, adicione pão e café; escolha retirada e envie o pedido.
 2. Guarde a página de acompanhamento. Em outra aba, entre no painel A.
-3. Aceite e prepare o pedido. Clique em **Pedido pronto**, depois **Entregar pedido** e **Confirmar entrega**. O acompanhamento atualiza automaticamente; a entrega é apenas uma confirmação manual do lojista.
+3. Aceite e prepare o pedido. Clique em **Pedido pronto**. No cliente, abra **Meus pedidos** e use **Confirmar recebimento**. Só então o lojista poderá clicar em **Entregar pedido → Confirmar entrega** para concluir. O acompanhamento atualiza automaticamente; o recebimento é uma declaração do cliente nesta fase de demonstração.
 4. Repita com taxa fixa; o servidor calcula produtos + frete.
 5. Repita com frete a combinar. No painel, proponha taxa e prazo; no link do comprador, aceite; no painel, confirme o pedido.
 6. Após o aceite do lojista, use “Simular já paguei”. No painel, use a conferência simulada. Declaração e conferência são estados diferentes; nenhum é conciliação bancária.

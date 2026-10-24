@@ -1087,3 +1087,17 @@ html[data-guide-active="true"] body {
     animation: none;
   }
 }
+.customer-orders-list {
+  display: grid;
+  gap: 20px;
+  margin-block: 24px;
+}
+.customer-order-card {
+  border: 2px solid var(--ink);
+}
+.receipt-confirmation {
+  margin-block: 18px;
+}
+.receipt-confirmation:empty {
+  display: none;
+}

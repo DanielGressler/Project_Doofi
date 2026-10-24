@@ -1,4 +1,5 @@
 import { $, api, ApiError, el, feedback, readCart } from "./browser";
+import { rememberCustomerOrder } from "../lib/customer-orders";
 import { money } from "../lib/types";
 import type { PublicProduct } from "../lib/public-data";
 import {
@@ -254,6 +255,11 @@ form.addEventListener("submit", async (event) => {
     );
     completed = true;
     receipt = result;
+    try {
+      rememberCustomerOrder(sessionStorage, result.token);
+    } catch {
+      /* The tracking link remains visible. */
+    }
     clearTimeout(expiry);
     // A confirmed response needs only the tracking link, never retained delivery fields.
     try {

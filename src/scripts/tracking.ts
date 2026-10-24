@@ -1,43 +1,20 @@
 import { $, api, busy, el, feedback } from "./browser";
 import { createPoller } from "./poller";
+import { rememberCustomerOrder } from "../lib/customer-orders";
+import { renderReceipt } from "./customer-receipt";
+import type { PublicOrder } from "../lib/public-order";
 import {
   money,
   statusLabels,
   paymentLabels,
   formatDate,
   type OrderStatus,
-  type OrderItem,
 } from "../lib/types";
-interface PublicOrder {
-  protocol: string;
-  status: OrderStatus;
-  fulfillment: string;
-  subtotal: number;
-  delivery_fee: number | null;
-  total: number | null;
-  version: number;
-  actionNonce: string;
-  items: OrderItem[];
-  payment: { method: string; status: string };
-  store: {
-    title: string;
-    slug: string;
-    contact: string;
-    pickup_address: string;
-  };
-  quote: {
-    version: number;
-    fee: number;
-    estimate: string;
-    expires_at: number;
-    accepted_at: number | null;
-  } | null;
-  events: { action: string; created_at: number; status?: OrderStatus }[];
-}
 const root = $("#tracking-app");
 if (root) {
   const token = root.dataset.token!;
   let order = JSON.parse(root.dataset.initial!) as PublicOrder;
+  let confirmingReceipt = false;
   const nextSteps: Partial<Record<OrderStatus, string>> = {
     PENDING:
       "Seu pedido chegou à loja. Agora é só aguardar o aceite do lojista.",
@@ -105,6 +82,20 @@ if (root) {
         "small muted",
       ),
     );
+    renderReceipt(
+      $("#tracking-receipt"),
+      order,
+      token,
+      (fresh) => {
+        if (fresh.version >= order.version) {
+          order = fresh;
+          render();
+        }
+      },
+      (pending) => {
+        confirmingReceipt = pending;
+      },
+    );
     const quoteRoot = $("#tracking-quote");
     quoteRoot.replaceChildren();
     if (order.status === "QUOTE_PROPOSED" && order.quote) {
@@ -149,6 +140,7 @@ if (root) {
       PAYMENT_DECLARED: "Declaração de Pix simulada",
       PAYMENT_LATE: "Declaração simulada após cancelamento",
       PAYMENT_SIMULATED_CONFIRMED: "Conferência simulada pelo lojista",
+      CUSTOMER_RECEIPT_CONFIRMED: "Você confirmou o recebimento",
     };
     for (const event of order.events) {
       const li = el(
@@ -241,11 +233,12 @@ if (root) {
       );
   }
   async function load() {
+    if (confirmingReceipt) return;
     const explicit = requestedRefresh;
     requestedRefresh = false;
     const next = await api<PublicOrder>(`pedidos/${token}`);
     if (!automaticUpdates && !explicit) return;
-    if (next.version < order.version) return;
+    if (confirmingReceipt || next.version < order.version) return;
     if (
       next.version !== order.version ||
       (next.quote && next.quote.expires_at <= Date.now() / 1000)
@@ -259,6 +252,7 @@ if (root) {
   let requestedRefresh = false;
   const canRefresh = () =>
     automaticUpdates &&
+    !confirmingReceipt &&
     !document.hidden &&
     !root.contains(document.activeElement);
   const poller = createPoller(load, {
@@ -292,6 +286,11 @@ if (root) {
     }
   };
   const slug = order.store.slug;
+  try {
+    rememberCustomerOrder(sessionStorage, token);
+  } catch {
+    /* The saved link remains usable without storage. */
+  }
   try {
     localStorage.removeItem(`doofi.lastOrder.${slug}`);
   } catch {}

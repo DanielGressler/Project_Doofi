@@ -14,7 +14,7 @@ import {
 } from "./core";
 import { getStore, getProducts } from "./catalog";
 import { assertSyntheticDelivery, deliveryIdentity } from "./customer-data";
-import { allowedOrderTransitions } from "./order-workflow";
+import { allowedOrderTransitions, canConfirmReceipt } from "./order-workflow";
 export { transitions } from "./order-workflow";
 import type {
   Order,
@@ -367,7 +367,10 @@ export async function createOrder(
   return { id, protocol, status, token, replayed: false };
 }
 
-const ownedOrderSelect = `SELECT o.*,c.phone AS customer_phone,c.email AS customer_email
+// Receipt is an immutable fact, independent of the bounded history shown in the UI.
+const receiptTimestampSql = `(SELECT MIN(a.created_at) FROM audit_events a
+  WHERE a.store_id=o.store_id AND a.entity_id=o.id AND a.action='CUSTOMER_RECEIPT_CONFIRMED')`;
+const ownedOrderSelect = `SELECT o.*,${receiptTimestampSql} AS received_at,c.phone AS customer_phone,c.email AS customer_email
       FROM orders o JOIN customer_details c ON c.id=o.customer_id AND c.store_id=o.store_id
       WHERE o.id=? AND o.store_id=?`;
 async function missingOwnedOrder(
@@ -455,7 +458,8 @@ export async function publicOrder(db: D1Database, token: string) {
     throw new AppError(404, "Pedido não encontrado ou link expirado.");
   const order = await db
     .prepare(
-      "SELECT id,store_id,status,quote_version,version,fulfillment,subtotal,total FROM orders WHERE public_token_hash=? AND token_revoked=0 AND token_expires_at>?",
+      `SELECT o.id,o.store_id,o.status,o.quote_version,o.version,o.fulfillment,o.subtotal,o.total,${receiptTimestampSql} AS received_at
+      FROM orders o WHERE o.public_token_hash=? AND o.token_revoked=0 AND o.token_expires_at>?`,
     )
     .bind(await hash(token), now())
     .first<
@@ -469,6 +473,7 @@ export async function publicOrder(db: D1Database, token: string) {
         | "fulfillment"
         | "subtotal"
         | "total"
+        | "received_at"
       >
     >();
   if (!order)
@@ -487,7 +492,7 @@ export async function publicStatus(db: D1Database, token: string) {
     await db.batch([
       db
         .prepare(
-          `SELECT o.protocol,o.status,o.fulfillment,o.subtotal,o.delivery_fee,o.total,o.version,o.created_at FROM orders o WHERE ${visibleOrder}`,
+          `SELECT o.protocol,o.status,o.fulfillment,o.subtotal,o.delivery_fee,o.total,o.version,o.created_at,${receiptTimestampSql} AS received_at FROM orders o WHERE ${visibleOrder}`,
         )
         .bind(tokenHash, timestamp),
       db
@@ -518,7 +523,7 @@ export async function publicStatus(db: D1Database, token: string) {
         .prepare(
           `SELECT a.action,a.created_at,a.metadata FROM audit_events a
       JOIN orders o ON o.id=a.entity_id AND o.store_id=a.store_id WHERE ${visibleOrder}
-      AND a.action IN ('ORDER_CREATED','ORDER_TRANSITION','QUOTE_PROPOSED','QUOTE_ACCEPTED','QUOTE_REJECTED','PAYMENT_DECLARED','PAYMENT_LATE','PAYMENT_SIMULATED_CONFIRMED')
+      AND a.action IN ('ORDER_CREATED','ORDER_TRANSITION','QUOTE_PROPOSED','QUOTE_ACCEPTED','QUOTE_REJECTED','PAYMENT_DECLARED','PAYMENT_LATE','PAYMENT_SIMULATED_CONFIRMED','CUSTOMER_RECEIPT_CONFIRMED')
       ORDER BY a.created_at DESC,a.rowid DESC LIMIT 100`,
         )
         .bind(tokenHash, timestamp),
@@ -535,6 +540,7 @@ export async function publicStatus(db: D1Database, token: string) {
         | "total"
         | "version"
         | "created_at"
+        | "received_at"
       >
     | undefined;
   if (!order)
@@ -553,7 +559,7 @@ export async function publicStatus(db: D1Database, token: string) {
     .map((event) => ({
       action: event.action,
       created_at: event.created_at,
-      status: JSON.parse(event.metadata).status,
+      status: JSON.parse(event.metadata).status as OrderStatus | undefined,
     }));
   return {
     protocol: order.protocol,
@@ -564,6 +570,7 @@ export async function publicStatus(db: D1Database, token: string) {
     total: order.total,
     version: order.version,
     created_at: order.created_at,
+    received_at: order.received_at ?? null,
     items: items.results as OrderItem[],
     payment: payments.results[0] as Payment,
     quote: quote
@@ -603,6 +610,12 @@ export async function transition(
   const target = textField(input.status, "Status", 2, 32) as OrderStatus;
   if (order.version !== version)
     throw new AppError(409, "O pedido foi atualizado. Recarregue os dados.");
+  if (target === "COMPLETED" && order.received_at == null)
+    throw new AppError(
+      409,
+      "O cliente precisa confirmar o recebimento antes de concluir o pedido.",
+      "RECEIPT_REQUIRED",
+    );
   if (!allowedOrderTransitions(order).includes(target))
     throw new AppError(409, "Esta mudança de status não é permitida.");
   if (target === "ACCEPTED" && order.total === null)
@@ -619,9 +632,10 @@ export async function transition(
   const result = await db.batch([
     db
       .prepare(
-        "UPDATE orders SET status=?,version=version+1,updated_at=? WHERE id=? AND store_id=? AND version=?",
+        `UPDATE orders SET status=?,version=version+1,updated_at=? WHERE id=? AND store_id=? AND version=?
+        AND (? != 'COMPLETED' OR EXISTS(SELECT 1 FROM audit_events a WHERE a.store_id=orders.store_id AND a.entity_id=orders.id AND a.action='CUSTOMER_RECEIPT_CONFIRMED'))`,
       )
-      .bind(target, now(), id, session.store_id, version),
+      .bind(target, now(), id, session.store_id, version, target),
     conditionalAudit(db, session, "ORDER_TRANSITION", id, {
       status: target,
       reason,
@@ -707,12 +721,55 @@ export async function customerAction(
       "Solicitação inválida. Atualize a página do pedido.",
     );
   const version = versionField(input.version);
+  if (action === "confirm-receipt" && order.received_at != null)
+    return {
+      received_at: order.received_at,
+      version: order.version,
+      replayed: true,
+    };
   if (order.version !== version)
     throw new AppError(
       409,
       "O pedido foi atualizado. Atualize antes de continuar.",
     );
   const guest = { store_id: order.store_id, user_id: "guest" };
+  if (action === "confirm-receipt") {
+    if (!canConfirmReceipt(order.status))
+      throw new AppError(
+        409,
+        "Confirme o recebimento somente após o pedido estar pronto ou sair para entrega.",
+        "RECEIPT_NOT_AVAILABLE",
+      );
+    const receivedAt = now();
+    const result = await db.batch([
+      db
+        .prepare(
+          `UPDATE orders SET version=version+1,updated_at=?
+        WHERE id=? AND store_id=? AND version=? AND status IN ('READY','OUT_FOR_DELIVERY')
+        AND token_revoked=0 AND token_expires_at>unixepoch()
+        AND NOT EXISTS(SELECT 1 FROM audit_events a WHERE a.store_id=orders.store_id AND a.entity_id=orders.id AND a.action='CUSTOMER_RECEIPT_CONFIRMED')`,
+        )
+        .bind(receivedAt, order.id, order.store_id, version),
+      conditionalAudit(db, guest, "CUSTOMER_RECEIPT_CONFIRMED", order.id, {
+        received: true,
+      }),
+      db
+        .prepare(
+          `SELECT o.version,${receiptTimestampSql} AS received_at FROM orders o WHERE o.id=? AND o.store_id=?`,
+        )
+        .bind(order.id, order.store_id),
+    ]);
+    if (!result[0].meta.changes)
+      throw new AppError(
+        409,
+        "Pedido atualizado. Confira os dados antes de continuar.",
+      );
+    const confirmed = result[2].results[0] as {
+      received_at: number;
+      version: number;
+    };
+    return { ...confirmed, replayed: false };
+  }
   if (["accept-quote", "reject-quote"].includes(action)) {
     const quote = await db
       .prepare(
