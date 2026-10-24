@@ -27,6 +27,27 @@ Se o login Cloudflare tiver expirado, execute `npm run cloudflare:login` e repit
 
 O comando remoto exige configuração de `staging-demo`, banco `doofi-demo` e o ID informado, e interrompe se a exportação falhar. Para gerar somente o plano SQL, sem ler ou alterar o banco, acrescente `-- --plan` a qualquer comando de reset.
 
+## Quando as alterações não aparecem ou o reset falha
+
+O Cloudflare publica a branch configurada em **Settings → Builds → Production branch**, atualmente `main`. Um commit em outra branch ou uma proposta de alteração aberta não atualiza essa publicação. Confira o commit em **Deployments** depois da integração na `main`; um novo build da versão antiga continuará exibindo a versão antiga.
+
+Atualize também a cópia do projeto no computador antes de usar os comandos de manutenção. `npm run db:reset` limpa somente o emulador local; o site hospedado usa `npm run db:reset:staging`. Publicar o código não executa o reset.
+
+Se aparecer `You are not authenticated` ou uma solicitação de `CLOUDFLARE_API_TOKEN`, execute `npm run cloudflare:login` no mesmo computador em que fará o reset. A autenticação do seu computador não autentica esta sessão de desenvolvimento nem é concedida pelo Database ID. O script mostra as mensagens de erro do Wrangler, inclusive as retornadas na saída JSON, e interrompe em caso de falha. Não envie tokens ao chat.
+
+Em uma cópia atualizada, execute a sequência completa no CMD, um comando por vez. Só prossiga se o anterior terminar sem erro:
+
+```bat
+cd /d "D:\myprojects\Project_Doofi-main"
+npm ci
+npm run cloudflare:login
+set DOOFI_D1_DATABASE_ID=fab28cb0-aeef-4215-a9d2-08c791cf7fa0
+npm run db:migrate:staging
+npm run db:reset:staging
+```
+
+As migrações preparam o esquema até 0007 antes da limpeza. Ao terminar, o reset precisa informar explicitamente `Reset remoto concluído`; a geração de um plano SQL ou a mensagem `Reset local concluído` não confirma alteração do site hospedado.
+
 ## Backup e verificação
 
 Cada execução cria `.local/demo-resets/DATA-HORA/` com:

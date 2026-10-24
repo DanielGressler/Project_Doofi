@@ -86,7 +86,14 @@ function wrangler(command, extra = [], capture = false) {
   );
   if (result.status !== 0)
     throw new Error(
-      `Falha no Wrangler. Reset interrompido. ${result.stderr ?? ""}`,
+      `Falha no Wrangler. Reset interrompido.\n${[
+        result.error?.message,
+        result.stderr,
+        capture ? result.stdout : undefined,
+      ]
+        .filter(Boolean)
+        .join("\n")
+        .trim()}`,
     );
   return result.stdout;
 }
