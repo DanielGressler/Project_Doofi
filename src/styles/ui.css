@@ -816,3 +816,30 @@ body:has(dialog[open]) {
     max-width: 100%;
   }
 }
+
+.guide-tools {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.guide-tools .button {
+  font-size: 12px;
+  padding: 10px 12px;
+}
+.novel-guide[data-motion="paused"] :is(.novel-character, .novel-eyes) {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-guide-motion] {
+    display: none;
+  }
+}
+
+.tracking-back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-block: 10px;
+}

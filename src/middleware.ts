@@ -4,6 +4,8 @@ import { getSession } from "./lib/auth";
 import { demoAllowed } from "./lib/access";
 import {
   clearLegacyCookies,
+  clearApplicationCookies,
+  hasApplicationCookie,
   cookieToken,
   needsCookieUpgrade,
   panelCookieName,
@@ -12,6 +14,7 @@ import {
 import { now } from "./lib/core";
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  let invalidApplicationCookie = false;
   const migration: {
     session: Awaited<ReturnType<typeof getSession>>;
     checked: boolean;
@@ -35,6 +38,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
         migration.checked = true;
       }
       if (panelPage) context.locals.session = session;
+      if (!session && hasApplicationCookie(context.request))
+        invalidApplicationCookie = true;
     }
     if (panelPage) {
       if (!context.locals.session && context.url.pathname !== "/painel/entrar")
@@ -46,6 +51,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
             ? "/painel/loja?tutorial=1"
             : "/painel/pedidos",
         );
+    }
+    if (
+      !context.url.pathname.includes("/api/") &&
+      !context.url.pathname.startsWith("/media/")
+    ) {
+      const epoch = await env.DB.prepare(
+        "SELECT value FROM app_keys WHERE name='browser_epoch'",
+      ).first<{ value: string }>();
+      context.locals.browserEpoch = epoch?.value ?? "initial";
     }
     return next();
   }
@@ -68,6 +82,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
     (migration.checked && (!migration.session || response.status < 400))
   )
     clearLegacyCookies(context.request, response.headers);
+  if (
+    !issuesSession &&
+    (invalidApplicationCookie ||
+      (response.status === 401 &&
+        hasApplicationCookie(context.request) &&
+        !/\/(login|register)$/.test(context.url.pathname)))
+  )
+    clearApplicationCookies(context.request, response.headers);
   response.headers.set("Cache-Control", "no-store");
   response.headers.set("Referrer-Policy", "no-referrer");
   response.headers.set("X-Content-Type-Options", "nosniff");

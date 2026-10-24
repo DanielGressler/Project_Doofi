@@ -45,7 +45,7 @@ async function checkout(
       ),
     ).toBe(true);
     const audit = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+      .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
       .analyze();
     expect(
       audit.violations.map((v) => ({
@@ -265,7 +265,7 @@ test("desktop e celular 320px · teclado, contraste e sem rolagem lateral", asyn
       ),
     ).toBe(true);
     const results = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+      .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
       .analyze();
     expect(
       results.violations.map((v) => ({
@@ -304,7 +304,7 @@ test("loja B no celular 320px · checkout, rastreio e painel acessíveis", async
     ),
   ).toBe(true);
   let results = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(
     results.violations.map((v) => ({
@@ -318,7 +318,7 @@ test("loja B no celular 320px · checkout, rastreio e painel acessíveis", async
   const panel = await merchant.newPage();
   await panel.goto("/painel/entrar");
   results = await new AxeBuilder({ page: panel })
-    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(
     results.violations.map((v) => ({
@@ -333,7 +333,7 @@ test("loja B no celular 320px · checkout, rastreio e painel acessíveis", async
     ),
   ).toBe(true);
   results = await new AxeBuilder({ page: panel })
-    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(
     results.violations.map((v) => ({

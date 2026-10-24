@@ -35,6 +35,14 @@ export function createOrderQueue(refresh: () => Promise<void>) {
   }
   async function focusNext(force = false) {
     if (paused || writing || document.hidden) return;
+    if (
+      !force &&
+      !dialog.open &&
+      document.activeElement?.matches(
+        "input,select,textarea,[contenteditable='true']",
+      )
+    )
+      return;
     const first = entries[0];
     if (!first) {
       current = null;
@@ -65,6 +73,8 @@ export function createOrderQueue(refresh: () => Promise<void>) {
     $("#queue-propose").hidden = true;
     $("#queue-accept").hidden = true;
     $<HTMLInputElement>("#queue-reason").value = "";
+    $("#queue-reason").removeAttribute("aria-invalid");
+    $("#queue-reason-error").textContent = "";
     feedback("", false, "#queue-feedback");
     if (!dialog.open) dialog.showModal();
     try {
@@ -122,9 +132,17 @@ export function createOrderQueue(refresh: () => Promise<void>) {
     const reason = $<HTMLInputElement>("#queue-reason");
     if (action === "REJECTED") {
       reason.required = true;
-      const valid = reason.reportValidity();
+      const valid = reason.checkValidity();
       reason.required = false;
-      if (!valid) return;
+      if (!valid) {
+        reason.setAttribute("aria-invalid", "true");
+        $("#queue-reason-error").textContent =
+          "Informe um motivo com pelo menos 3 caracteres para recusar este pedido.";
+        reason.focus();
+        return;
+      }
+      reason.removeAttribute("aria-invalid");
+      $("#queue-reason-error").textContent = "";
     }
     writing = true;
     lock(true);
@@ -164,6 +182,12 @@ export function createOrderQueue(refresh: () => Promise<void>) {
   }
   $("#queue-accept").onclick = () => void decide("ACCEPTED");
   $("#queue-reject").onclick = () => void decide("REJECTED");
+  $("#queue-reason").addEventListener("input", () => {
+    if ($<HTMLInputElement>("#queue-reason").value.trim().length >= 3) {
+      $("#queue-reason").removeAttribute("aria-invalid");
+      $("#queue-reason-error").textContent = "";
+    }
+  });
   $<HTMLFormElement>("#queue-quote").onsubmit = (event) => {
     event.preventDefault();
     void decide("QUOTE");
@@ -187,7 +211,7 @@ export function createOrderQueue(refresh: () => Promise<void>) {
       feedback("Nenhum pedido aguardando decisão neste momento.");
     else {
       current = null;
-      void focusNext();
+      void focusNext(true);
     }
   };
   return {

@@ -376,13 +376,22 @@ export async function finishStoreGuide(
       "Somente o proprietário pode concluir a configuração.",
     );
   const version = versionField(input.version);
+  if (input.skip !== undefined && typeof input.skip !== "boolean")
+    throw new AppError(422, "Informe se deseja pular o tutorial.");
+  const skip = input.skip === true;
   const results = await db.batch([
     db
       .prepare(
-        "UPDATE stores SET setup_complete=1,version=version+1 WHERE id=? AND version=? AND setup_complete=0 AND version>0",
+        "UPDATE stores SET setup_complete=1,version=version+1 WHERE id=? AND version=? AND setup_complete=0 AND (version>0 OR ?=1)",
       )
-      .bind(session.store_id, version),
-    conditionalAudit(db, session, "GUIDE_COMPLETED", session.store_id),
+      .bind(session.store_id, version, Number(skip)),
+    conditionalAudit(
+      db,
+      session,
+      skip ? "GUIDE_SKIPPED" : "GUIDE_COMPLETED",
+      session.store_id,
+      { version },
+    ),
   ]);
   if (!results[0].meta.changes) {
     const store = await db
@@ -394,6 +403,23 @@ export async function finishStoreGuide(
         409,
         "Salve a personalização da loja e atualize a página antes de concluir o guia.",
       );
+    if (skip && store.version !== version) {
+      // Recover a lost skip response only if this exact decision produced the current version.
+      const replay =
+        store.version === version + 1 &&
+        (await db
+          .prepare(
+            "SELECT id FROM audit_events WHERE store_id=? AND actor_id=? AND action='GUIDE_SKIPPED' AND json_extract(metadata,'$.version')=? LIMIT 1",
+          )
+          .bind(session.store_id, session.user_id, version)
+          .first());
+      if (!replay)
+        throw new AppError(
+          409,
+          "A loja foi alterada. Atualize a página antes de pular o tutorial.",
+        );
+    }
+    return { completed: true, version: store.version };
   }
-  return { completed: true };
+  return { completed: true, version: version + 1 };
 }

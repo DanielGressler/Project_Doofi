@@ -30,7 +30,7 @@ import Layout from "../../layouts/Layout.astro";
             Criar minha loja
           </button>
         </div>
-        <form id="register-form" hidden>
+        <form id="register-form" method="post" hidden>
           <NovelGuide
             id="register-guide"
             scenes={[
@@ -88,6 +88,10 @@ import Layout from "../../layouts/Layout.astro";
             <small>Use uma senha inventada com pelo menos 8 caracteres.</small>
           </label>
           <label class="checkbox">
+            <input type="checkbox" name="skipTutorial" />
+            <span>Pular tutorial e configurar a loja depois</span>
+          </label>
+          <label class="checkbox">
             <input type="checkbox" name="syntheticData" required />
             <span>
               Estou criando uma loja de teste com dados e senha fictícios.
@@ -98,7 +102,7 @@ import Layout from "../../layouts/Layout.astro";
           </button>
           <p id="register-feedback" class="feedback" role="alert"></p>
         </form>
-        <form id="login-form">
+        <form id="login-form" method="post">
           <label class="field">
             <span>E-mail de demonstração</span>
             <input
@@ -158,6 +162,14 @@ import Layout from "../../layouts/Layout.astro";
   }
   $("#show-login").onclick = () => showRegister(false);
   $("#show-register").onclick = () => showRegister(true);
+  $<HTMLInputElement>('[name="skipTutorial"]', registerForm).onchange = (
+    event,
+  ) => {
+    const skip = (event.currentTarget as HTMLInputElement).checked;
+    $("#register-guide").hidden = skip;
+    $<HTMLButtonElement>('button[type="submit"]', registerForm).textContent =
+      skip ? "Criar loja sem tutorial →" : "Criar loja e personalizar →";
+  };
   registerForm.onsubmit = async (event) => {
     event.preventDefault();
     const button = $<HTMLButtonElement>('button[type="submit"]', registerForm);
@@ -167,6 +179,7 @@ import Layout from "../../layouts/Layout.astro";
       const result = await api<{ next: string }>("register", {
         ...Object.fromEntries(fields),
         syntheticData: fields.get("syntheticData") === "on",
+        skipTutorial: fields.get("skipTutorial") === "on",
       });
       location.assign(result.next);
     } catch (error) {

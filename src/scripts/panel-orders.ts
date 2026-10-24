@@ -15,6 +15,7 @@ type Row = Pick<
   | "created_at"
 >;
 let rows: Row[] = [];
+let requestedRefresh = false;
 function render() {
   const root = $("#order-list");
   root.replaceChildren();
@@ -65,11 +66,14 @@ function render() {
   }
 }
 async function load() {
+  const explicit = requestedRefresh;
+  requestedRefresh = false;
   const { orders, summary, queue } = await api<{
     orders: Row[];
     summary: OrderSummary;
     queue: QueueEntry[];
   }>("painel/visao-geral");
+  if (!automaticUpdates && !explicit) return;
   rows = orders;
   $("#stat-total").textContent = String(summary.total_orders);
   $("#stat-pending").textContent = String(summary.pending);
@@ -83,17 +87,37 @@ async function load() {
   orderQueue.update(queue);
   feedback("");
 }
+let automaticUpdates = true;
 const canRefresh = () =>
-  !document.hidden && !$("#order-list").contains(document.activeElement);
+  automaticUpdates &&
+  !document.hidden &&
+  !$("#order-list").contains(document.activeElement);
 const poller = createPoller(load, {
   enabled: canRefresh,
   onError: (error) => feedback((error as Error).message, true),
 });
-const orderQueue = createOrderQueue(() => poller.refresh(true));
+const refresh = () => {
+  requestedRefresh = true;
+  return poller.refresh(true);
+};
+const orderQueue = createOrderQueue(refresh);
 const orderAlerts = createOrderAlerts();
-$("#refresh-orders").onclick = () => void poller.refresh();
+$("#refresh-orders").onclick = () => void refresh();
+$("#pause-order-updates").onclick = (event) => {
+  automaticUpdates = !automaticUpdates;
+  const button = event.currentTarget as HTMLButtonElement;
+  button.setAttribute("aria-pressed", String(!automaticUpdates));
+  button.textContent = automaticUpdates
+    ? "Pausar atualização automática"
+    : "Retomar atualização automática";
+  if (automaticUpdates) void refresh();
+  else
+    feedback(
+      "Atualização automática pausada. Use Atualizar para consultar sem reativá-la.",
+    );
+};
 $("#status-filter").onchange = render;
-void poller.refresh();
+void refresh();
 document.addEventListener("visibilitychange", () => {
   if (canRefresh()) void poller.refresh();
 });

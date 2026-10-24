@@ -166,6 +166,12 @@ export async function register(
     throw new AppError(422, "Confirme o uso de dados fictícios.");
   const userId = crypto.randomUUID(),
     storeId = crypto.randomUUID();
+  if (
+    input.skipTutorial !== undefined &&
+    typeof input.skipTutorial !== "boolean"
+  )
+    throw new AppError(422, "Informe se deseja pular o tutorial.");
+  const skipTutorial = input.skipTutorial === true;
   const slug = `loja-${storeId}`;
   const salt = randomToken(),
     token = randomToken(),
@@ -181,9 +187,9 @@ export async function register(
       db
         .prepare(
           `INSERT INTO stores (id,slug,title,description,contact,pickup_address,hours,is_open,delivery_fee,neighborhoods,theme,has_own_delivery,setup_complete)
-        VALUES (?,?,?,'Produtos da nossa loja fictícia.',?,'Rua de Exemplo, 10','Segunda a sábado, 9h às 18h',0,0,'Centro','bakery',0,0)`,
+        VALUES (?,?,?,'Produtos da nossa loja fictícia.',?,'Rua de Exemplo, 10','Segunda a sábado, 9h às 18h',0,0,'Centro','bakery',0,?)`,
         )
-        .bind(storeId, slug, title, contact),
+        .bind(storeId, slug, title, contact, Number(skipTutorial)),
       db
         .prepare(
           "INSERT INTO store_memberships (store_id,user_id,role) VALUES (?,?,'owner')",
@@ -198,6 +204,9 @@ export async function register(
         )
         .bind(await hash(token), userId, csrf, now() + 28800),
       audit(db, storeId, userId, "STORE_REGISTERED", storeId),
+      ...(skipTutorial
+        ? [audit(db, storeId, userId, "GUIDE_SKIPPED", storeId)]
+        : []),
     ]);
   } catch (error) {
     if (String(error).includes("UNIQUE constraint failed: users.email"))
@@ -211,7 +220,7 @@ export async function register(
   return {
     csrfToken: csrf,
     setCookie: sessionCookie(token, request, 28800),
-    next: "/painel/loja?tutorial=1",
+    next: skipTutorial ? "/painel/catalogo" : "/painel/loja?tutorial=1",
   };
 }
 export async function logout(

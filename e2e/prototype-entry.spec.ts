@@ -27,18 +27,27 @@ test("entrada tem só duas experiências e cliente segue à lista de lojas", asy
   expect(
     (
       await new AxeBuilder({ page })
-        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
         .analyze()
     ).violations,
   ).toEqual([]);
   await page.getByRole("link", { name: /Sou cliente/ }).click();
   await expect(page).toHaveURL(/\/lojas$/);
-  await expect(
-    page.getByRole("link", { name: "Conhecer Casa do Forno" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Conhecer Verde à Mesa" }),
-  ).toBeVisible();
+  const found = new Set<string>();
+  for (let number = 0; number < 100; number++) {
+    const links = await page
+      .locator(".directory-card a[href]")
+      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("href")!));
+    expect(links.length).toBeLessThanOrEqual(24);
+    links.forEach((href) => found.add(href));
+    if (found.has("/loja/casa-do-forno") && found.has("/loja/verde-mesa"))
+      break;
+    const next = page.getByRole("link", { name: "Próxima", exact: false });
+    if (!(await next.count())) break;
+    await next.click();
+  }
+  expect(found.has("/loja/casa-do-forno")).toBe(true);
+  expect(found.has("/loja/verde-mesa")).toBe(true);
   expect(await page.content()).not.toContain("forno@demo.doofi.test");
   expect(
     await page.evaluate(
@@ -48,7 +57,7 @@ test("entrada tem só duas experiências e cliente segue à lista de lojas", asy
   expect(
     (
       await new AxeBuilder({ page })
-        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
         .analyze()
     ).violations,
   ).toEqual([]);

@@ -116,7 +116,7 @@ export async function verifyGlobalTheme(page: Page, browser: Browser) {
           ),
         ).toBe(true);
         const results = await new AxeBuilder({ page: shop })
-          .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
           .analyze();
         expect(
           results.violations.map((v) => ({

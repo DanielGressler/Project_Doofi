@@ -42,6 +42,7 @@ test("carrinhos por empresa, clientes em contextos separados e descarte dos dado
     await page
       .getByRole("link", { name: "Avançar para dados e entrega" })
       .click();
+    await expect(page.locator("#submit-order")).toBeEnabled();
     expect(
       await page.evaluate(() =>
         localStorage.getItem("doofi.lastOrder.casa-do-forno"),

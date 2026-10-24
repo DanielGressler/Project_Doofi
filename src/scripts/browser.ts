@@ -1,3 +1,4 @@
+import "./demo-storage";
 import { apiUrl } from "../lib/api-path";
 export const $ = <T extends HTMLElement = HTMLElement>(
   selector: string,

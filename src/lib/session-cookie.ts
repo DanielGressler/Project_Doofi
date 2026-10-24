@@ -23,6 +23,23 @@ export function cookieToken(request: Request) {
 export const needsCookieUpgrade = (request: Request) =>
   values(request, panelCookieName(request)).length === 0 &&
   values(request, legacyName).length > 0;
+export const hasApplicationCookie = (request: Request) =>
+  [panelCookieName(request), legacyName, "doofi_panel"].some(
+    (name) => values(request, name).length > 0,
+  );
+export function clearApplicationCookies(request: Request, headers: Headers) {
+  const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
+  for (const name of new Set([
+    panelCookieName(request),
+    "doofi_panel",
+    legacyName,
+  ]))
+    for (const path of ["/", "/painel"])
+      headers.append(
+        "Set-Cookie",
+        `${name}=; Path=${path}; HttpOnly; SameSite=Strict; Max-Age=0${secure}`,
+      );
+}
 export function sessionCookie(value: string, request: Request, maxAge: number) {
   return `${panelCookieName(request)}=${value}; Path=/painel; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${new URL(request.url).protocol === "https:" ? "; Secure" : ""}`;
 }

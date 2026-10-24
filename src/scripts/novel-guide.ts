@@ -26,7 +26,10 @@ document.querySelectorAll<HTMLElement>("[data-novel-guide]").forEach((root) => {
       );
     if (focus) {
       root.querySelector<HTMLElement>("[data-guide-title]")!.focus();
-      if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
+      if (
+        root.dataset.motion !== "paused" &&
+        !matchMedia("(prefers-reduced-motion: reduce)").matches
+      )
         root.querySelector<HTMLElement>(".novel-dialogue")!.animate(
           [
             { opacity: 0, transform: "translateY(8px)" },
@@ -50,5 +53,19 @@ document.querySelectorAll<HTMLElement>("[data-novel-guide]").forEach((root) => {
   root.addEventListener("guide:scene", (event) =>
     show((event as CustomEvent<number>).detail),
   );
+  root.querySelector<HTMLButtonElement>("[data-guide-motion]")!.onclick = (
+    event,
+  ) => {
+    const button = event.currentTarget as HTMLButtonElement;
+    const paused = root.dataset.motion !== "paused";
+    root.dataset.motion = paused ? "paused" : "playing";
+    button.setAttribute("aria-pressed", String(paused));
+    button.textContent = paused ? "Retomar animações" : "Pausar animações";
+    if (paused)
+      root
+        .querySelector<HTMLElement>(".novel-dialogue")!
+        .getAnimations()
+        .forEach((animation) => animation.cancel());
+  };
   show(chapter);
 });

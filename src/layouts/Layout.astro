@@ -19,6 +19,7 @@ const colors = palettes[appearance?.palette ?? "terracotta"];
 <!doctype html>
 <html
   lang="pt-BR"
+  data-doofi-epoch={Astro.locals.browserEpoch}
   class:list={{ "store-theme": !!appearance }}
   data-layout={appearance?.layout ?? undefined}
   style={appearance ? appearanceStyles(appearance) : undefined}
@@ -109,6 +110,7 @@ const colors = palettes[appearance?.palette ?? "terracotta"];
             <a href="/painel/pedidos">Meus pedidos</a>
             <a href="/painel/catalogo">Gerenciar catálogo</a>
             <a href="/painel/loja">Configurar loja</a>
+            <a href="/painel/loja?tutorial=1">Guia da loja</a>
           </>
         ) : slug ? (
           <>
@@ -130,5 +132,8 @@ const colors = palettes[appearance?.palette ?? "terracotta"];
         Ative o JavaScript para montar o carrinho e testar esta demonstração.
       </p>
     </noscript>
+    <script>
+      import "../scripts/demo-storage";
+    </script>
   </body>
 </html>

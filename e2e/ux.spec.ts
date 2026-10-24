@@ -9,7 +9,7 @@ async function audit(page: Page) {
     ),
   ).toBe(true);
   const result = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(
     result.violations.map((v) => ({
@@ -247,7 +247,7 @@ async function create(
 test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõe frete", async ({
   page,
 }) => {
-  test.setTimeout(90000);
+  test.setTimeout(120000);
   const store = await prepare(page.request);
   const first = await create(page.request, store);
   await page.goto("/painel/pedidos");
@@ -371,5 +371,26 @@ test("fila mantém o primeiro em foco, empilha chegadas, aceita, recusa e propõ
   await expect(page.locator("#queue-title")).toContainText(quote.protocol);
   await expect(page.locator("#queue-total")).toContainText("17,00");
   await page.locator("#queue-accept").click();
+  await expect(page.locator("#order-queue")).toBeHidden();
+  await page.locator("#status-filter").focus();
+  const fifth = await create(page.request, store);
+  await expect(page.locator("#open-order-queue")).toHaveText(
+    /Atender fila \(1/,
+    { timeout: 25000 },
+  );
+  await expect(page.locator("#order-queue")).toBeHidden();
+  await expect(page.locator("#status-filter")).toBeFocused();
+  await page.locator("#open-order-queue").click();
+  await expect(page.locator("#queue-title")).toContainText(fifth.protocol);
+  await page.locator("#queue-reject").click();
+  await expect(page.locator("#queue-reason-error")).toContainText(
+    "pelo menos 3",
+  );
+  await expect(page.locator("#queue-reason")).toBeFocused();
+  await page.locator("#queue-reason").fill("Motivo de teste");
+  await expect(page.locator("#queue-reason")).not.toHaveAttribute(
+    "aria-invalid",
+  );
+  await page.locator("#queue-reject").click();
   await expect(page.locator("#order-queue")).toBeHidden();
 });

@@ -58,7 +58,13 @@ const scenes = [
   </div>
   {tutorial && (
     <div data-guide-version={store!.version} id="catalog-tutorial">
-      <NovelGuide id="catalog-guide" scenes={scenes} controls chapter={chapter}>
+      <NovelGuide
+        id="catalog-guide"
+        scenes={scenes}
+        controls
+        skip
+        chapter={chapter}
+      >
         <div
           class="guide-example"
           data-guide-preview="0"
@@ -108,9 +114,10 @@ const scenes = [
     </div>
   )}
   <p class="notice">
-    As alterações valem para novos pedidos. Deixe a caixa de indisponibilidade
-    desmarcada para vender. Nos combos, a indisponibilidade de um dos itens
-    bloqueia o anúncio automaticamente.
+    Use o botão + ao lado do nome para abrir os detalhes e editar; − minimiza o
+    cartão. As alterações valem para novos pedidos. Deixe a caixa de
+    indisponibilidade desmarcada para vender. Nos combos, a indisponibilidade de
+    um dos itens bloqueia o anúncio automaticamente.
   </p>
   <datalist id="category-examples">
     {[
@@ -196,6 +203,35 @@ const scenes = [
   import "../../scripts/dialogs";
   import "../../scripts/catalog-cards";
   import { $, api, busy } from "../../scripts/browser";
+  $("#catalog-guide [data-guide-skip]")?.addEventListener("click", (event) => {
+    void busy(event.currentTarget as HTMLButtonElement, async () => {
+      try {
+        await api(
+          "painel/guia/concluir",
+          {
+            version: Number($("#catalog-tutorial").dataset.guideVersion),
+            skip: true,
+          },
+          "POST",
+          $("#panel-app").dataset.csrf,
+        );
+        $("#catalog-tutorial").hidden = true;
+        const url = new URL(location.href);
+        url.searchParams.delete("tutorial");
+        url.searchParams.delete("capitulo");
+        history.replaceState(null, "", url);
+        const heading = $("h1");
+        heading.tabIndex = -1;
+        heading.focus();
+        $("#feedback").textContent =
+          "Tutorial pulado. Seus produtos continuam disponíveis para edição. Você pode reabrir o guia pelo rodapé.";
+      } catch (error) {
+        $("#catalog-guide [data-guide-feedback]").textContent = (
+          error as Error
+        ).message;
+      }
+    });
+  });
   $("[data-guide-finish]")?.addEventListener("click", (event) => {
     void busy(event.currentTarget as HTMLButtonElement, async () => {
       try {

@@ -123,3 +123,5 @@ Os testes automatizados exercitam o bloqueio de tokens ausentes, falsos, expirad
 Referência: [Cloudflare Access para Workers](https://developers.cloudflare.com/workers/configuration/cloudflare-access/).
 
 Verificações desta alteração: 44 testes de backend e 11 cenários de navegador aprovados; check e lint sem erros; build local e build de homologação aprovados; dry-run da publicação aprovado. O Worker compilado de homologação retornou 403 sem autenticação para páginas, API e mídia. A preparação também recusa o Database ID fictício e impede publicar como homologação um build local. Nenhuma dessas verificações carregou dados ou publicou recursos na conta Cloudflare do usuário.
+
+Para apagar todos os dados de teste e restaurar a base inicial, use o comando de manutenção descrito em [RESET_PROTOTIPO.md](RESET_PROTOTIPO.md). Ele cria backup e não é disparado por deploys. A revisão das decisões de interface está em [REVISAO_IUX.md](REVISAO_IUX.md).

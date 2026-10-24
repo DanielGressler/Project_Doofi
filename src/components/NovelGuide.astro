@@ -4,8 +4,9 @@ interface Props {
   scenes: { title: string; text: string }[];
   controls?: boolean;
   chapter?: number;
+  skip?: boolean;
 }
-const { id, scenes, controls = false, chapter = 0 } = Astro.props;
+const { id, scenes, controls = false, chapter = 0, skip = false } = Astro.props;
 const initial = Math.min(scenes.length - 1, Math.max(0, chapter));
 ---
 
@@ -17,6 +18,21 @@ const initial = Math.min(scenes.length - 1, Math.max(0, chapter));
   data-chapter={initial}
   aria-label="Guia interativo da loja"
 >
+  <div class="guide-tools">
+    <button
+      type="button"
+      class="button button-quiet"
+      data-guide-motion
+      aria-pressed="false"
+    >
+      Pausar animações
+    </button>
+    {skip && (
+      <button type="button" class="button button-quiet" data-guide-skip>
+        Pular tutorial
+      </button>
+    )}
+  </div>
   <div class="novel-stage">
     <div class="novel-character" aria-hidden="true">
       <svg viewBox="0 0 160 160" width="120" height="120">
@@ -51,6 +67,7 @@ const initial = Math.min(scenes.length - 1, Math.max(0, chapter));
     </div>
   </div>
   <slot />
+  <p data-guide-feedback class="feedback" role="alert"></p>
   {controls && (
     <div class="novel-controls">
       <button

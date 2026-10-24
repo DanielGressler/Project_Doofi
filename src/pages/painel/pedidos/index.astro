@@ -64,6 +64,14 @@ import Icon from "../../../components/Icon.astro";
   >
     Ativar som de novos pedidos
   </button>
+  <button
+    type="button"
+    class="button button-quiet"
+    id="pause-order-updates"
+    aria-pressed="false"
+  >
+    Pausar atualização automática
+  </button>
   <p class="small muted" id="alert-status" role="status">
     Os pedidos aparecem automaticamente com esta aba aberta. O som é opcional.
   </p>
@@ -110,7 +118,7 @@ import Icon from "../../../components/Icon.astro";
           <strong id="queue-total"></strong>
         </div>
         <p id="queue-note" class="small"></p>
-        <form id="queue-quote" hidden>
+        <form id="queue-quote" method="post" hidden>
           <p class="notice">
             Proponha o frete para o comprador aprovar. O pedido volta à fila
             após o aceite dele.
@@ -143,11 +151,13 @@ import Icon from "../../../components/Icon.astro";
           <span>Motivo para recusar</span>
           <input
             id="queue-reason"
+            aria-describedby="queue-reason-error"
             minlength="3"
             maxlength="160"
             placeholder="Preencha somente se for recusar"
           />
         </label>
+        <p id="queue-reason-error" class="feedback error" role="alert"></p>
         <div class="queue-actions">
           <button id="queue-reject" type="button" class="button queue-reject">
             <span aria-hidden="true">×</span> Recusar pedido

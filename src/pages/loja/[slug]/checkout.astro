@@ -67,7 +67,7 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
         estes dados não cancela pedidos.
       </p>
     </aside>
-    <form id="checkout-form" class="checkout-layout">
+    <form id="checkout-form" class="checkout-layout" method="post">
       <div class="checkout-fields">
         <section class="card">
           <h2>Quem vai receber?</h2>
@@ -246,6 +246,7 @@ const products = (await getProducts(env.DB, store.id)).map(publicProduct);
           class="button button-primary button-full"
           type="submit"
           id="submit-order"
+          disabled
         >
           Enviar pedido de teste <Icon name="arrow" size={18} />
         </button>

@@ -31,6 +31,7 @@ const tutorial =
   {tutorial ? (
     <NovelGuide
       id="store-guide"
+      skip
       scenes={[
         {
           title: "Vamos dar uma identidade à loja",
@@ -57,6 +58,7 @@ const tutorial =
   )}
   <form
     id="store-form"
+    method="post"
     data-tutorial={String(tutorial)}
     data-version={store.version}
     data-banner-id={store.banner_id ?? ""}
@@ -377,7 +379,7 @@ const tutorial =
   import { appearanceStyles } from "../../lib/appearance";
   import type { StoreAppearance } from "../../lib/types";
   const form = $<HTMLFormElement>("#store-form");
-  const tutorial = form.dataset.tutorial === "true";
+  let tutorial = form.dataset.tutorial === "true";
   let step = 0;
   const steps = [...form.querySelectorAll<HTMLElement>("[data-wizard-step]")];
   function showStep(next: number) {
@@ -419,6 +421,42 @@ const tutorial =
     };
     $("#wizard-back").onclick = () => showStep(step - 1);
   }
+  $("#store-guide [data-guide-skip]")?.addEventListener("click", (event) => {
+    void busy(event.currentTarget as HTMLButtonElement, async () => {
+      try {
+        const result = await api<{ version: number }>(
+          "painel/guia/concluir",
+          { version: Number(form.dataset.version), skip: true },
+          "POST",
+          $("#panel-app").dataset.csrf,
+        );
+        form.dataset.version = String(result.version);
+        form.dataset.tutorial = "false";
+        tutorial = false;
+        form.noValidate = false;
+        $("#store-guide").hidden = true;
+        $(".wizard-progress").hidden = true;
+        steps.forEach((node) => (node.hidden = false));
+        $("#wizard-back").hidden = true;
+        $("#wizard-next").hidden = true;
+        $("#save-store").hidden = false;
+        $("#save-store").textContent = "Salvar configurações";
+        const url = new URL(location.href);
+        url.searchParams.delete("tutorial");
+        history.replaceState(null, "", url);
+        const heading = $("h2", steps[0]);
+        heading.tabIndex = -1;
+        heading.focus();
+        feedback(
+          "Tutorial pulado. As edições continuam no formulário; clique em Salvar configurações para aplicá-las. O guia pode ser reaberto pelo rodapé.",
+        );
+      } catch (error) {
+        $("#store-guide [data-guide-feedback]").textContent = (
+          error as Error
+        ).message;
+      }
+    });
+  });
   const own = $<HTMLInputElement>('[name="has_own_delivery"]', form),
     fee = $<HTMLInputElement>('[name="delivery_fee"]', form);
   function deliveryChanged() {
