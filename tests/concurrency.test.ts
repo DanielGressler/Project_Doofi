@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import type { D1PreparedStatement } from "@cloudflare/workers-types";
 import { env } from "cloudflare:workers";
 import {
@@ -191,25 +191,32 @@ it("cotação que expira antes do commit não pode fechar o total do pedido", as
 });
 
 it("limite de chamadas continua atômico durante uma rajada concorrente", async () => {
-  const request = new Request("http://localhost/api/v1/login", {
-    headers: { "cf-connecting-ip": "192.0.2.10" },
-  });
-  const results = await Promise.allSettled(
-    Array.from({ length: 40 }, () => rateLimit(env.DB, request, "burst", 12)),
-  );
-  expect(
-    results.filter((result) => result.status === "fulfilled"),
-  ).toHaveLength(12);
-  for (const result of results)
-    if (result.status === "rejected")
-      expect(result.reason).toMatchObject({ status: 429 });
-  expect(
-    (await env.DB.prepare(
-      "SELECT MAX(count) AS count FROM rate_limits WHERE expires_at>?",
-    )
-      .bind(now())
-      .first<{ count: number }>())!.count,
-  ).toBe(12);
+  const clock = vi
+    .spyOn(Date, "now")
+    .mockReturnValue(Math.floor(Date.now() / 60000) * 60000 + 10000);
+  try {
+    const request = new Request("http://localhost/api/v1/login", {
+      headers: { "cf-connecting-ip": "192.0.2.10" },
+    });
+    const results = await Promise.allSettled(
+      Array.from({ length: 40 }, () => rateLimit(env.DB, request, "burst", 12)),
+    );
+    expect(
+      results.filter((result) => result.status === "fulfilled"),
+    ).toHaveLength(12);
+    for (const result of results)
+      if (result.status === "rejected")
+        expect(result.reason).toMatchObject({ status: 429 });
+    expect(
+      (await env.DB.prepare(
+        "SELECT MAX(count) AS count FROM rate_limits WHERE expires_at>?",
+      )
+        .bind(now())
+        .first<{ count: number }>())!.count,
+    ).toBe(12);
+  } finally {
+    clock.mockRestore();
+  }
 });
 
 it("40 reenvios concorrentes persistem um único pedido e uma única auditoria de criação", async () => {

@@ -22,6 +22,8 @@ O atendimento usa a barra **Pedido pronto → Entregar pedido → Confirmar entr
 
 O cliente agora confirma o recebimento em **Meus pedidos** ou no acompanhamento individual. O lojista só consegue concluir depois dessa confirmação, com bloqueio também no servidor. A lista usa referências desta aba, sem login ou contatos armazenados. Veja o [guia de recebimento](docs/RECEBIMENTO_CLIENTE.md); não exige migração nem reset.
 
+A [auditoria breve do recebimento](docs/AUDITORIA_RECEBIMENTO.md) registra correções de histórico inválido, persistência de mensagens de erro e foco do teclado durante atualizações.
+
 ## Executar
 
 Requisitos: Node 24 (ou >=22.22), npm e Linux/macOS/Windows compatível com workerd. As versões exatas estão em `package-lock.json`.
