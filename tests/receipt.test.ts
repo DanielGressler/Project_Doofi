@@ -20,6 +20,36 @@ const owner: Session = {
   token_hash: "test",
   email: "forno@demo.doofi.test",
 };
+
+it.each([
+  ["JSON inválido", "{"],
+  ["valor nulo", "null"],
+  ["status desconhecido", '{"status":"__proto__"}'],
+])("acompanhamento tolera metadados históricos: %s", async (_, metadata) => {
+  const order = await make();
+  await env.DB.prepare(
+    "INSERT INTO audit_events VALUES ('historical-event','store-a','guest','ORDER_TRANSITION',?,?,'test',unixepoch())",
+  )
+    .bind(order.id, metadata)
+    .run();
+  const response = await handleApi(
+    new Request(`http://localhost/api/v1/pedidos/${order.token}`),
+    env.DB,
+    "local-demo",
+  );
+  expect(response.status).toBe(200);
+  const result = (await response.json()) as {
+    status: string;
+    received_at: number | null;
+    events: { action: string; status?: string }[];
+  };
+  expect(result.status).toBe("READY");
+  expect(result.received_at).toBeNull();
+  expect(
+    result.events.filter((event) => event.action === "ORDER_TRANSITION").at(-1)
+      ?.status,
+  ).toBeUndefined();
+});
 async function make(ready = true) {
   const { intent } = await issueIntent(env.DB, "casa-do-forno");
   const order = await createOrder(env.DB, "casa-do-forno", {

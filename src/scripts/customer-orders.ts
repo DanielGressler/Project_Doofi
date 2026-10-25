@@ -20,7 +20,8 @@ if (root) {
   };
   const cards: Card[] = [];
   function render(card: Card, fresh: PublicOrder) {
-    if (card.order && fresh.version < card.order.version) return;
+    const previous = card.order;
+    if (previous && fresh.version < previous.version) return;
     card.order = fresh;
     const details = card.node.querySelector<HTMLElement>(
       ".customer-order-details",
@@ -38,16 +39,22 @@ if (root) {
     for (const item of fresh.items)
       items.append(el("li", `${item.quantity} × ${item.title}`));
     details.append(items, el("p", `Total: ${money(fresh.total)}`));
-    renderReceipt(
-      card.node.querySelector<HTMLElement>(".receipt-confirmation")!,
-      fresh,
-      card.token,
-      (updated) => render(card, updated),
-      (value) => {
-        card.pending = value;
-        writes += value ? 1 : -1;
-      },
-    );
+    // Unchanged reads may refresh store details without erasing an action error or focus.
+    if (
+      !previous ||
+      previous.version !== fresh.version ||
+      previous.received_at !== fresh.received_at
+    )
+      renderReceipt(
+        card.node.querySelector<HTMLElement>(".receipt-confirmation")!,
+        () => card.order!,
+        card.token,
+        (updated) => render(card, updated),
+        (value) => {
+          card.pending = value;
+          writes += value ? 1 : -1;
+        },
+      );
   }
   try {
     for (const { token } of readCustomerOrders(sessionStorage)) {

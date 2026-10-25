@@ -102,6 +102,183 @@ async function scenario(page: Page, fulfillment = "PICKUP", accepted = false) {
   return { ...order, headers, path: `/painel/pedidos/${order.id}` };
 }
 
+test("auditoria: erro de recebimento permanece após consulta sem mudança no pedido", async ({
+  page,
+  browser,
+}) => {
+  const order = await scenario(page, "PICKUP", true);
+  expect(
+    (
+      await page.request.post(`/painel/api/v1/pedidos/${order.id}/transicoes`, {
+        headers: order.headers,
+        data: { version: 1, status: "READY" },
+      })
+    ).ok(),
+  ).toBe(true);
+  const context = await browser.newContext();
+  try {
+    const client = await context.newPage();
+    await client.goto(`/pedido/${order.token}`);
+    await client
+      .getByRole("link", { name: "Meus pedidos", exact: true })
+      .first()
+      .click();
+    await client.route(
+      `**/api/v1/pedidos/${order.token}/confirm-receipt`,
+      (route) =>
+        route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "Falha temporária de teste. Confira o pedido.",
+            code: "TEST_FAILURE",
+          }),
+        }),
+    );
+    await client
+      .getByRole("button", { name: "Confirmar recebimento", exact: true })
+      .click();
+    await expect(
+      client.locator('.receipt-confirmation [role="alert"]'),
+    ).toContainText("Falha temporária de teste");
+    const store = await (await page.request.get("/painel/api/v1/loja")).json();
+    expect(
+      (
+        await page.request.patch("/painel/api/v1/loja", {
+          headers: order.headers,
+          data: {
+            ...store,
+            title: "Loja auditada Teste",
+            is_open: !!store.is_open,
+            has_own_delivery: !!store.has_own_delivery,
+          },
+        })
+      ).ok(),
+    ).toBe(true);
+    await client
+      .getByRole("button", { name: "Atualizar meus pedidos", exact: true })
+      .click();
+    await expect(client.locator(".customer-order-card h2")).toHaveText(
+      "Loja auditada Teste",
+    );
+    await expect(
+      client.locator('.receipt-confirmation [role="alert"]'),
+    ).toContainText("Falha temporária de teste");
+    expect(
+      (await (await page.request.get(`/api/v1/pedidos/${order.token}`)).json())
+        .received_at,
+    ).toBeNull();
+    await client.unroute(`**/api/v1/pedidos/${order.token}/confirm-receipt`);
+    await client.route(`**/api/v1/pedidos/${order.token}`, (route) =>
+      route.abort("failed"),
+    );
+    await client
+      .getByRole("button", { name: "Confirmar recebimento", exact: true })
+      .click();
+    await expect(client.locator(".receipt-confirmation")).toContainText(
+      "Recebimento confirmado",
+    );
+    await expect(client.locator(".customer-order-card h2")).toHaveText(
+      "Loja auditada Teste",
+    );
+  } finally {
+    await context.close();
+  }
+});
+
+for (const destination of ["lista", "acompanhamento"]) {
+  test(`auditoria: ${destination} preserva foco quando resposta chega após interação por teclado`, async ({
+    page,
+    browser,
+  }) => {
+    const order = await scenario(page, "PICKUP", true);
+    expect(
+      (
+        await page.request.post(
+          `/painel/api/v1/pedidos/${order.id}/transicoes`,
+          { headers: order.headers, data: { version: 1, status: "READY" } },
+        )
+      ).ok(),
+    ).toBe(true);
+    const context = await browser.newContext();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    try {
+      const client = await context.newPage();
+      await client.goto(`/pedido/${order.token}`);
+      if (destination === "lista")
+        await client
+          .getByRole("link", { name: "Meus pedidos", exact: true })
+          .first()
+          .click();
+      const button = client.getByRole("button", {
+        name: "Confirmar recebimento",
+        exact: true,
+      });
+      await expect(button).toBeVisible();
+      const store = await (
+        await page.request.get("/painel/api/v1/loja")
+      ).json();
+      expect(
+        (
+          await page.request.patch("/painel/api/v1/loja", {
+            headers: order.headers,
+            data: {
+              ...store,
+              title: "Loja auditada Teste",
+              is_open: !!store.is_open,
+              has_own_delivery: !!store.has_own_delivery,
+            },
+          })
+        ).ok(),
+      ).toBe(true);
+      expect(
+        (
+          await page.request.post(
+            `/painel/api/v1/pedidos/${order.id}/simular-conferencia`,
+            { headers: order.headers, data: { version: 2 } },
+          )
+        ).ok(),
+      ).toBe(true);
+      let waiting = false;
+      await client.route(`**/api/v1/pedidos/${order.token}`, async (route) => {
+        const response = await route.fetch();
+        waiting = true;
+        await gate;
+        await route.fulfill({ response });
+      });
+      await client
+        .locator(
+          destination === "lista"
+            ? "#refresh-customer-orders"
+            : "#refresh-tracking",
+        )
+        .click();
+      await expect.poll(() => waiting).toBe(true);
+      await button.focus();
+      release();
+      if (destination === "lista")
+        await expect(client.locator(".customer-order-card h2")).toHaveText(
+          "Loja auditada Teste",
+        );
+      else
+        await expect(client.locator("#tracking-payment")).toContainText(
+          "conferência do lojista",
+        );
+      await expect(button).toBeFocused();
+      await client.keyboard.press("Space");
+      await expect(client.locator(".receipt-confirmation")).toContainText(
+        "Recebimento confirmado",
+      );
+    } finally {
+      release();
+      await context.close();
+    }
+  });
+}
+
 test("Meus pedidos confirma recebimento, recupera resposta perdida e libera somente a própria compra", async ({
   page,
   browser,

@@ -5,11 +5,18 @@ import type { PublicOrder } from "../lib/public-order";
 
 export function renderReceipt(
   root: HTMLElement,
-  order: PublicOrder,
+  readOrder: () => PublicOrder,
   token: string,
   update: (fresh: PublicOrder) => void,
   pending: (value: boolean) => void,
 ) {
+  const order = readOrder();
+  const hadFocus = root.contains(document.activeElement);
+  function restoreFocus(target: HTMLElement) {
+    if (!hadFocus) return;
+    if (target.tagName !== "BUTTON") target.tabIndex = -1;
+    target.focus({ preventScroll: true });
+  }
   root.replaceChildren();
   const status = el("p", "", "small");
   status.setAttribute("role", "status");
@@ -18,6 +25,7 @@ export function renderReceipt(
   root.append(status, error);
   if (order.received_at != null) {
     status.textContent = `Recebimento confirmado em ${formatDate(order.received_at)}. ${order.status === "COMPLETED" ? "Pedido concluído." : canConfirmReceipt(order.status) ? "A loja já pode concluir o pedido." : "Este atendimento já foi encerrado."}`;
+    restoreFocus(status);
     return;
   }
   if (!canConfirmReceipt(order.status)) {
@@ -26,6 +34,7 @@ export function renderReceipt(
     )
       ? "Este atendimento já foi encerrado."
       : "Você poderá confirmar o recebimento quando a loja marcar o pedido como pronto.";
+    restoreFocus(status);
     return;
   }
   status.textContent =
@@ -37,6 +46,7 @@ export function renderReceipt(
   );
   button.type = "button";
   error.before(button);
+  restoreFocus(button);
   let writing = false;
   function confirmed(fresh: PublicOrder) {
     update(fresh);
@@ -48,6 +58,7 @@ export function renderReceipt(
   }
   button.onclick = async () => {
     if (writing) return;
+    const actionOrder = readOrder();
     writing = true;
     pending(true);
     button.disabled = true;
@@ -57,12 +68,12 @@ export function renderReceipt(
       const result = await api<{ received_at: number; version: number }>(
         `pedidos/${token}/confirm-receipt`,
         {
-          version: order.version,
-          nonce: order.actionNonce,
+          version: actionOrder.version,
+          nonce: actionOrder.actionNonce,
         },
       );
       let fresh: PublicOrder = {
-        ...order,
+        ...actionOrder,
         received_at: result.received_at,
       };
       // A replay may return a newer version after the merchant already completed.

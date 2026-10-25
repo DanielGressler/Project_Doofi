@@ -84,7 +84,7 @@ if (root) {
     );
     renderReceipt(
       $("#tracking-receipt"),
-      order,
+      () => order,
       token,
       (fresh) => {
         if (fresh.version >= order.version) {

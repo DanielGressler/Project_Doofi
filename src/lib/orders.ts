@@ -15,6 +15,7 @@ import {
 import { getStore, getProducts } from "./catalog";
 import { assertSyntheticDelivery, deliveryIdentity } from "./customer-data";
 import { allowedOrderTransitions, canConfirmReceipt } from "./order-workflow";
+import { statusLabels } from "./types";
 export { transitions } from "./order-workflow";
 import type {
   Order,
@@ -480,6 +481,18 @@ export async function publicOrder(db: D1Database, token: string) {
     throw new AppError(404, "Pedido não encontrado ou link expirado.");
   return order;
 }
+function historicalStatus(metadata: string): OrderStatus | undefined {
+  try {
+    const value: unknown = JSON.parse(metadata);
+    if (!value || typeof value !== "object" || Array.isArray(value)) return;
+    const status = (value as Record<string, unknown>).status;
+    if (typeof status === "string" && Object.hasOwn(statusLabels, status))
+      return status as OrderStatus;
+  } catch {
+    // A malformed historical event must not hide the current order or its receipt.
+  }
+}
+
 export async function publicStatus(db: D1Database, token: string) {
   if (!/^[a-f0-9]{64}$/.test(token))
     throw new AppError(404, "Pedido não encontrado ou link expirado.");
@@ -559,7 +572,7 @@ export async function publicStatus(db: D1Database, token: string) {
     .map((event) => ({
       action: event.action,
       created_at: event.created_at,
-      status: JSON.parse(event.metadata).status as OrderStatus | undefined,
+      status: historicalStatus(event.metadata),
     }));
   return {
     protocol: order.protocol,
