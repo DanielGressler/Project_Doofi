@@ -14,6 +14,8 @@ Validação local aprovada: **198 testes de backend e 11 cenários de navegador 
 
 A validação mantém os testes de origem, isolamento entre lojas/clientes, links expirados/revogados, concorrência, resposta perdida e bloqueio da conclusão antes do recebimento. Não foram alterados login, permissões, valores, regras de pagamento ou formato de armazenamento. Não exige migração, reset ou dependências novas.
 
+A CI revelou também uma instabilidade nos testes de limite de chamadas: uma sequência podia atravessar a virada do minuto e usar duas janelas válidas. Os testes de login e rajada agora fixam o relógio durante a janela e o restauram ao terminar. O teste de login verifica ainda o `Retry-After` e a liberação da janela seguinte. A implementação do limite não foi alterada.
+
 Comandos: `npm run check`, `npm run lint`, `npm test`, `npm run build` e `npm run test:e2e`. A CI executa também a restauração de uma cópia do D1 local antes da integração na `main`.
 
 Esta é uma revisão dirigida aos fluxos recentes; não constitui uma auditoria exaustiva de todo o projeto ou teste de capacidade do ambiente remoto. O checkpoint anterior permanece inalterado.

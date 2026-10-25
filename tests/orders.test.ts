@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { env } from "cloudflare:workers";
 import {
   createOrder,
@@ -526,27 +526,35 @@ describe("Borda HTTP", () => {
       ).status,
     ).toBe(403);
   });
-  it("login tem limite de tentativas com resposta 429", async () => {
-    let status = 0;
-    for (let i = 0; i < 11; i++)
-      status = (
-        await handleApi(
-          new Request("http://localhost/api/v1/login", {
-            method: "POST",
-            headers: {
-              origin: "http://localhost",
-              "content-type": "application/json",
-            },
-            body: JSON.stringify({
-              email: "missing@demo.doofi.test",
-              password: "wrong",
-            }),
+  it("login limita tentativas por janela e libera a próxima", async () => {
+    const windowStart = Math.floor(Date.now() / 60000) * 60000;
+    const clock = vi.spyOn(Date, "now").mockReturnValue(windowStart + 10000);
+    const attempt = () =>
+      handleApi(
+        new Request("http://localhost/api/v1/login", {
+          method: "POST",
+          headers: {
+            origin: "http://localhost",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            email: "missing@demo.doofi.test",
+            password: "wrong",
           }),
-          env.DB,
-          "local-demo",
-        )
-      ).status;
-    expect(status).toBe(429);
+        }),
+        env.DB,
+        "local-demo",
+      );
+    try {
+      for (let i = 0; i < 10; i++) expect((await attempt()).status).toBe(401);
+      const blocked = await attempt();
+      expect(blocked.status).toBe(429);
+      expect(blocked.headers.get("retry-after")).toBe("50");
+      clock.mockReturnValue(windowStart + 70000);
+      expect((await attempt()).status).toBe(401);
+    } finally {
+      clock.mockRestore();
+    }
   });
 });
 
